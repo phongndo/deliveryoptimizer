@@ -88,6 +88,16 @@ curl -f http://localhost:5050/health
 Expected: HTTP `200` and JSON with `"status":"ok"`.
 
 If port `5000` is free on your machine and you want that exact endpoint, set `OSRM_PUBLIC_PORT=5000` in `infra/env/routing.env`.
+
+## Performance Baseline
+
+A load-test harness lives in `benchmarks/` to capture a Python baseline now and compare against C++ later.
+
+1. Capture Python baseline: `python3 benchmarks/load_optimize.py --implementation python ...`
+2. Capture C++ run with the same settings: `python3 benchmarks/load_optimize.py --implementation cpp ...`
+3. Compare reports: `python3 benchmarks/compare_reports.py --baseline ... --candidate ...`
+
+Detailed commands are in `benchmarks/README.md`.
 # Delivery Optimizer UI
 
 Frontend application for optimizing delivery routes.

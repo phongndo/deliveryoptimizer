@@ -7,6 +7,7 @@ target_sources(
     src/api_server.cpp
     src/endpoints/health_endpoint.cpp
     src/endpoints/optimize_endpoint.cpp
+    src/endpoints/osrm_proxy_endpoint.cpp
     src/server_options.cpp
   PUBLIC
     FILE_SET HEADERS
@@ -15,6 +16,7 @@ target_sources(
       include/deliveryoptimizer/api/api_server.hpp
       include/deliveryoptimizer/api/endpoints/health_endpoint.hpp
       include/deliveryoptimizer/api/endpoints/optimize_endpoint.hpp
+      include/deliveryoptimizer/api/endpoints/osrm_proxy_endpoint.hpp
       include/deliveryoptimizer/api/server_options.hpp
 )
 target_include_directories(deliveryoptimizer_api_runtime PUBLIC include)

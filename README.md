@@ -1,6 +1,6 @@
 # Delivery Optimizer
 
-This branch bootstraps the C++ backend scaffold (Conan + CMake + Drogon) and keeps the Next.js UI in `app/ui`.
+This branch introduces the C++ API runtime modules plus ARM routing stack assets (OSRM + VROOM) and an OSRM proxy endpoint.
 
 ## Contributor Docs
 
@@ -9,22 +9,17 @@ This branch bootstraps the C++ backend scaffold (Conan + CMake + Drogon) and kee
 
 ## Repository Layout
 
-- `app/api`: C++ HTTP server entrypoint.
+- `app/api`: C++ HTTP server entrypoint and endpoint modules.
 - `libs`: domain/application/adapter libraries.
-- `deploy`: deployment assets for ARM image builds and compose.
-- `tests`: C++ and integration tests.
+- `deploy`: Dockerfiles, compose files, and env files.
+- `tests`: C++ tests, local HTTP integration tests, and routing smoke tests.
 - `app/ui`: Next.js frontend.
 
-## API (Bootstrap Stage)
+## API Endpoints
 
 - `GET /health`
 - `GET /optimize?deliveries=<n>&vehicles=<n>`
-
-Example:
-
-```bash
-curl -fsS "http://127.0.0.1:8080/optimize?deliveries=4&vehicles=2"
-```
+- `GET /api/v1/osrm/*` (allowlisted OSRM services)
 
 ## Build (C++)
 
@@ -42,6 +37,22 @@ Run:
 
 ```bash
 ./build/build/Release/app/api/deliveryoptimizer-api
+```
+
+## Routing Stack (Docker)
+
+```bash
+docker compose \
+  --env-file deploy/env/http-server.arm64.env \
+  -f deploy/compose/docker-compose.arm64.yml \
+  up --build -d
+```
+
+Quick checks:
+
+```bash
+curl -f http://127.0.0.1:8080/health
+curl -f "http://127.0.0.1:5001/nearest/v1/driving/-122.4194,37.7749?number=1&generate_hints=false"
 ```
 
 ## UI

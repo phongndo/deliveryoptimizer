@@ -45,6 +45,7 @@ gtest_discover_tests(deliveryoptimizer_tests DISCOVERY_TIMEOUT 30)
 
 find_program(BASH_PROGRAM bash REQUIRED)
 find_program(CURL_PROGRAM curl REQUIRED)
+find_program(DOCKER_PROGRAM docker)
 
 add_test(
   NAME DeliveryOptimizerApiTest.HealthAndOptimize
@@ -68,3 +69,21 @@ add_test(
           "$<TARGET_FILE:deliveryoptimizer_api>" "${CURL_PROGRAM}"
 )
 set_tests_properties(DeliveryOptimizerApiValidationTest.OptimizeRejectsExcessiveDeliveries PROPERTIES TIMEOUT 30)
+
+if(DOCKER_PROGRAM)
+  add_test(
+    NAME DeliveryOptimizerRoutingSmokeTest.OsrmAndVroom
+    COMMAND
+      "${BASH_PROGRAM}" "${CMAKE_CURRENT_SOURCE_DIR}/integration/routing/osrm_and_vroom_smoketest.sh"
+      "${CMAKE_SOURCE_DIR}/tests/integration/routing/routing_smoketest.env"
+      "${CMAKE_SOURCE_DIR}/deploy/compose/docker-compose.arm64.yml"
+      "${DOCKER_PROGRAM}" "${CURL_PROGRAM}"
+  )
+  set_tests_properties(
+    DeliveryOptimizerRoutingSmokeTest.OsrmAndVroom
+    PROPERTIES
+      DISABLED TRUE
+      RUN_SERIAL TRUE
+      TIMEOUT 1800
+  )
+endif()

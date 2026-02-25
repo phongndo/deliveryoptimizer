@@ -2,9 +2,13 @@
 
 ARG UBUNTU_VERSION=24.04
 ARG CONAN_VERSION=2.9.2
+ARG VROOM_REF=v1.14.0
+ARG VROOM_BUILD_JOBS=2
 
 FROM --platform=$TARGETPLATFORM ubuntu:${UBUNTU_VERSION} AS builder
 ARG CONAN_VERSION
+ARG VROOM_REF
+ARG VROOM_BUILD_JOBS
 ARG TARGETPLATFORM
 ARG TARGETARCH
 ARG TARGETVARIANT
@@ -19,8 +23,13 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     apt-get update \
     && apt-get install -y --no-install-recommends \
       build-essential \
+      ccache \
       cmake \
       git \
+      libasio-dev \
+      libboost-all-dev \
+      liblua5.3-dev \
+      libssl-dev \
       ninja-build \
       pkg-config \
       python3 \
@@ -55,14 +64,24 @@ RUN --mount=type=cache,target=/tmp/conan-home,sharing=locked \
     && cmake --build build/build/Release --target deliveryoptimizer_api -j"$(nproc)" \
     && strip build/build/Release/app/api/deliveryoptimizer-api || true
 
+RUN git clone --recurse-submodules --shallow-submodules --depth 1 --branch "${VROOM_REF}" \
+      https://github.com/VROOM-Project/vroom.git /tmp/vroom \
+    && make -C /tmp/vroom/src -j"${VROOM_BUILD_JOBS}" \
+    && install -D /tmp/vroom/bin/vroom /usr/local/bin/vroom \
+    && strip /usr/local/bin/vroom || true
+
 # Collect binary and linked shared objects into a minimal runtime root.
 RUN bash -euo pipefail -c '\
-    BIN="build/build/Release/app/api/deliveryoptimizer-api"; \
     RUNTIME_ROOT="/tmp/runtime-root"; \
     RUNTIME_LIB_DIR="${RUNTIME_ROOT}/opt/runtime-libs"; \
-    mkdir -p "${RUNTIME_ROOT}/usr/local/bin" "${RUNTIME_LIB_DIR}"; \
-    cp "${BIN}" "${RUNTIME_ROOT}/usr/local/bin/deliveryoptimizer-api"; \
-    ldd "${BIN}" \
+    RUNTIME_BIN_DIR="${RUNTIME_ROOT}/usr/local/bin"; \
+    mkdir -p "${RUNTIME_BIN_DIR}" "${RUNTIME_LIB_DIR}"; \
+    cp build/build/Release/app/api/deliveryoptimizer-api "${RUNTIME_BIN_DIR}/deliveryoptimizer-api"; \
+    cp /usr/local/bin/vroom "${RUNTIME_BIN_DIR}/vroom"; \
+    { \
+      ldd build/build/Release/app/api/deliveryoptimizer-api; \
+      ldd /usr/local/bin/vroom; \
+    } \
       | awk "{if (\$3 ~ /^\\//) print \$3; else if (\$1 ~ /^\\//) print \$1}" \
       | sort -u \
       | while read -r lib; do cp -L "${lib}" "${RUNTIME_LIB_DIR}/"; done'
@@ -70,6 +89,11 @@ RUN bash -euo pipefail -c '\
 FROM --platform=$TARGETPLATFORM ubuntu:${UBUNTU_VERSION} AS runtime
 ENV DEBIAN_FRONTEND=noninteractive
 ENV LD_LIBRARY_PATH=/opt/runtime-libs
+ENV VROOM_BIN=/usr/local/bin/vroom
+ENV VROOM_ROUTER=osrm
+ENV VROOM_HOST=osrm
+ENV VROOM_PORT=5001
+ENV VROOM_TIMEOUT_SECONDS=30
 
 RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     --mount=type=cache,target=/var/lib/apt/lists,sharing=locked \
@@ -80,6 +104,7 @@ RUN --mount=type=cache,target=/var/cache/apt,sharing=locked \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /tmp/runtime-root/usr/local/bin/deliveryoptimizer-api /usr/local/bin/deliveryoptimizer-api
+COPY --from=builder /tmp/runtime-root/usr/local/bin/vroom /usr/local/bin/vroom
 COPY --from=builder /tmp/runtime-root/opt/runtime-libs/ /opt/runtime-libs/
 
 EXPOSE 8080

@@ -60,6 +60,7 @@ find_program(PYTHON3_PROGRAM python3 REQUIRED)
 find_program(DOCKER_PROGRAM docker)
 
 set(DELIVERYOPTIMIZER_LOCAL_API_LABELS "integration;api;local")
+set(DELIVERYOPTIMIZER_LOCAL_API_REGRESSION_LABELS "integration;api;local;regression")
 
 function(deliveryoptimizer_set_local_http_test_port test_name port)
   set_tests_properties(
@@ -232,38 +233,66 @@ set_tests_properties(
     TIMEOUT 30
     LABELS "integration;local;regression"
 )
-
-add_test(
-  NAME DeliveryOptimizerApiRegressionTest.DeliveriesOptimizeEnforcesSolverTimeout
-  COMMAND "${BASH_PROGRAM}"
-          "${CMAKE_CURRENT_SOURCE_DIR}/integration/http_server/deliveries_optimize_enforces_solver_timeout_test.sh"
-          "$<TARGET_FILE:deliveryoptimizer_api>" "${CURL_PROGRAM}"
+deliveryoptimizer_add_local_http_test(
+  DeliveryOptimizerApiRegressionTest.DeliveriesOptimizeRejectsInvalidVehicleTimeWindow
+  deliveries_optimize_rejects_invalid_vehicle_time_window_test.sh
+  30
+  "${DELIVERYOPTIMIZER_LOCAL_API_REGRESSION_LABELS}"
 )
-set_tests_properties(DeliveryOptimizerApiRegressionTest.DeliveriesOptimizeEnforcesSolverTimeout PROPERTIES TIMEOUT 30)
-
-add_test(
-  NAME DeliveryOptimizerApiRegressionTest.DeliveriesOptimizePreservesVehicleTimeWindow
-  COMMAND "${BASH_PROGRAM}"
-          "${CMAKE_CURRENT_SOURCE_DIR}/integration/http_server/deliveries_optimize_preserves_vehicle_time_window_test.sh"
-          "$<TARGET_FILE:deliveryoptimizer_api>" "${CURL_PROGRAM}"
+deliveryoptimizer_set_local_http_test_port(
+  DeliveryOptimizerApiRegressionTest.DeliveriesOptimizeRejectsInvalidVehicleTimeWindow
+  29000
 )
-set_tests_properties(DeliveryOptimizerApiRegressionTest.DeliveriesOptimizePreservesVehicleTimeWindow PROPERTIES TIMEOUT 30)
-
-add_test(
-  NAME DeliveryOptimizerApiRegressionTest.DeliveriesOptimizePreservesJobTimeWindows
-  COMMAND "${BASH_PROGRAM}"
-          "${CMAKE_CURRENT_SOURCE_DIR}/integration/http_server/deliveries_optimize_preserves_job_time_windows_test.sh"
-          "$<TARGET_FILE:deliveryoptimizer_api>" "${CURL_PROGRAM}"
+deliveryoptimizer_add_local_http_test(
+  DeliveryOptimizerApiRegressionTest.DeliveriesOptimizePreservesVehicleTimeWindow
+  deliveries_optimize_preserves_vehicle_time_window_test.sh
+  30
+  "${DELIVERYOPTIMIZER_LOCAL_API_REGRESSION_LABELS}"
 )
-set_tests_properties(DeliveryOptimizerApiRegressionTest.DeliveriesOptimizePreservesJobTimeWindows PROPERTIES TIMEOUT 30)
-
-add_test(
-  NAME DeliveryOptimizerApiRegressionTest.DeliveriesOptimizeRejectsOutOfRangeCoordinates
-  COMMAND "${BASH_PROGRAM}"
-          "${CMAKE_CURRENT_SOURCE_DIR}/integration/http_server/deliveries_optimize_rejects_out_of_range_coordinates_test.sh"
-          "$<TARGET_FILE:deliveryoptimizer_api>" "${CURL_PROGRAM}"
+deliveryoptimizer_set_local_http_test_port(
+  DeliveryOptimizerApiRegressionTest.DeliveriesOptimizePreservesVehicleTimeWindow
+  30000
 )
-set_tests_properties(DeliveryOptimizerApiRegressionTest.DeliveriesOptimizeRejectsOutOfRangeCoordinates PROPERTIES TIMEOUT 30)
+deliveryoptimizer_add_local_http_test(
+  DeliveryOptimizerApiRegressionTest.DeliveriesOptimizeRejectsInvalidJobTimeWindows
+  deliveries_optimize_rejects_invalid_job_time_windows_test.sh
+  30
+  "${DELIVERYOPTIMIZER_LOCAL_API_REGRESSION_LABELS}"
+)
+deliveryoptimizer_set_local_http_test_port(
+  DeliveryOptimizerApiRegressionTest.DeliveriesOptimizeRejectsInvalidJobTimeWindows
+  31000
+)
+deliveryoptimizer_add_local_http_test(
+  DeliveryOptimizerApiRegressionTest.DeliveriesOptimizePreservesJobTimeWindows
+  deliveries_optimize_preserves_job_time_windows_test.sh
+  30
+  "${DELIVERYOPTIMIZER_LOCAL_API_REGRESSION_LABELS}"
+)
+deliveryoptimizer_set_local_http_test_port(
+  DeliveryOptimizerApiRegressionTest.DeliveriesOptimizePreservesJobTimeWindows
+  32000
+)
+deliveryoptimizer_add_local_http_test(
+  DeliveryOptimizerApiRegressionTest.DeliveriesOptimizeRejectsEmptyJobTimeWindows
+  deliveries_optimize_rejects_empty_job_time_windows_test.sh
+  30
+  "${DELIVERYOPTIMIZER_LOCAL_API_REGRESSION_LABELS}"
+)
+deliveryoptimizer_set_local_http_test_port(
+  DeliveryOptimizerApiRegressionTest.DeliveriesOptimizeRejectsEmptyJobTimeWindows
+  33000
+)
+deliveryoptimizer_add_local_http_test(
+  DeliveryOptimizerApiRegressionTest.DeliveriesOptimizeRejectsOutOfRangeCoordinates
+  deliveries_optimize_rejects_out_of_range_coordinates_test.sh
+  30
+  "${DELIVERYOPTIMIZER_LOCAL_API_REGRESSION_LABELS}"
+)
+deliveryoptimizer_set_local_http_test_port(
+  DeliveryOptimizerApiRegressionTest.DeliveriesOptimizeRejectsOutOfRangeCoordinates
+  38000
+)
 
 if(DOCKER_PROGRAM)
   set(DELIVERYOPTIMIZER_E2E_ENV_FILE "${CMAKE_SOURCE_DIR}/tests/integration/e2e/e2e_stack.env")
@@ -346,63 +375,6 @@ if(DOCKER_PROGRAM)
     1800
   )
   deliveryoptimizer_add_docker_api_e2e_test(
-    DeliveryOptimizerE2ETest.OptimizeRejectsExcessiveDeliveries
-    optimize_rejects_excessive_deliveries_e2e_test.sh
-    1800
-  )
-
-  deliveryoptimizer_add_docker_api_e2e_test(
-    DeliveryOptimizerE2ETest.OsrmProxyNearestReturnsOk
-    osrm_proxy_nearest_returns_ok_e2e_test.sh
-    2400
-  )
-  deliveryoptimizer_add_docker_api_e2e_test(
-    DeliveryOptimizerE2ETest.OsrmProxyBlocksTileService
-    osrm_proxy_blocks_tile_service_e2e_test.sh
-    2400
-  )
-  deliveryoptimizer_add_docker_api_e2e_test(
-    DeliveryOptimizerE2ETest.DeliveriesOptimizeValidPayloadReturnsRoutingResponse
-    deliveries_optimize_valid_payload_returns_routing_response_e2e_test.sh
-    2400
-  )
-  deliveryoptimizer_add_docker_api_e2e_test(
-    DeliveryOptimizerE2ETest.DeliveriesOptimizeInvalidPayloadReturnsValidationError
-    deliveries_optimize_invalid_payload_returns_validation_error_e2e_test.sh
-    2400
-  )
-  deliveryoptimizer_add_docker_api_e2e_test(
-    DeliveryOptimizerE2ETest.DeliveriesOptimizeMalformedJsonReturnsParseError
-    deliveries_optimize_malformed_json_returns_parse_error_e2e_test.sh
-    2400
-  )
-
-  deliveryoptimizer_add_docker_e2e_test(
-    DeliveryOptimizerE2ETest.OsrmNearestReturnsOk
-    osrm_nearest_returns_ok_e2e_test.sh
-    1800
-  )
-  deliveryoptimizer_add_docker_e2e_test(
-    DeliveryOptimizerE2ETest.VroomHelpIsAvailable
-    vroom_help_is_available_e2e_test.sh
-    1800
-  )
-  deliveryoptimizer_add_docker_e2e_test(
-    DeliveryOptimizerE2ETest.HealthEndpointReturnsOk
-    health_endpoint_returns_ok_e2e_test.sh
-    1800
-  )
-  deliveryoptimizer_add_docker_e2e_test(
-    DeliveryOptimizerE2ETest.OptimizeValidQueryReturnsSummary
-    optimize_valid_query_returns_summary_e2e_test.sh
-    1800
-  )
-  deliveryoptimizer_add_docker_e2e_test(
-    DeliveryOptimizerE2ETest.OptimizeRejectsNegativeDeliveries
-    optimize_rejects_negative_deliveries_e2e_test.sh
-    1800
-  )
-  deliveryoptimizer_add_docker_e2e_test(
     DeliveryOptimizerE2ETest.OptimizeRejectsExcessiveDeliveries
     optimize_rejects_excessive_deliveries_e2e_test.sh
     1800

@@ -24,6 +24,7 @@ constexpr std::string_view kDefaultVroomRouter = "osrm";
 constexpr std::string_view kDefaultVroomHost = "osrm";
 constexpr std::string_view kDefaultVroomPort = "5001";
 constexpr std::string_view kDefaultVroomTimeoutSeconds = "30";
+constexpr int kDefaultJobServiceSeconds = 300;
 
 struct Coordinate {
   double lon;
@@ -239,7 +240,6 @@ ParseJob(const Json::Value& job, const std::string_view base_field, Json::Value&
   const Json::Value& job_id = job["id"];
   const Json::Value& location = job["location"];
   const Json::Value& demand = job["demand"];
-  const Json::Value& service = job["service"];
 
   bool valid_job = true;
   std::string external_id;
@@ -263,11 +263,16 @@ ParseJob(const Json::Value& job, const std::string_view base_field, Json::Value&
     valid_job = false;
   }
 
-  const auto parsed_service = ParseBoundedInt(service, 0);
-  if (!parsed_service.has_value()) {
-    AddValidationIssue(issues, std::string{base_field} + ".service",
-                       "must be a non-negative integer.");
-    valid_job = false;
+  int parsed_service = kDefaultJobServiceSeconds;
+  if (job.isMember("service")) {
+    const auto parsed_service_value = ParseBoundedInt(job["service"], 0);
+    if (!parsed_service_value.has_value()) {
+      AddValidationIssue(issues, std::string{base_field} + ".service",
+                         "must be a non-negative integer.");
+      valid_job = false;
+    } else {
+      parsed_service = parsed_service_value.value();
+    }
   }
 
   if (!valid_job) {
@@ -278,7 +283,7 @@ ParseJob(const Json::Value& job, const std::string_view base_field, Json::Value&
                   .lon = parsed_location->lon,
                   .lat = parsed_location->lat,
                   .demand = parsed_demand.value(),
-                  .service = parsed_service.value()};
+                  .service = parsed_service};
 }
 
 void ParseDepot(const Json::Value& root, OptimizeRequestInput& parsed_input, Json::Value& issues) {

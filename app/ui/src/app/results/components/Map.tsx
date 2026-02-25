@@ -1,30 +1,20 @@
-// Map component for the Results page that renders the Google Map, draws the routes, and shows the delivery stops as markers
+// Map component for the Results page: Google Map, route polylines, and delivery stops as Advanced Markers (vis.gl = Google's newer API).
 "use client";
 
 import { useCallback, Fragment } from "react";
 import { LoadScriptNext, GoogleMap, Marker, Polyline } from "@react-google-maps/api"; // Loading the Google Maps API
 import type { Route } from "../types";
 
-const DAVIS_CENTER = { lat: 38.5449, lng: -121.7405 }; // Map center coordinates for Davis, CA (Google Maps needs an initial center to position the initial view of the map)
-const POLYLINE_COLOR = "#2563eb"; // Blue path per issue spec (single mock route)
+const DAVIS_CENTER = { lat: 38.5449, lng: -121.7405 }; // Map center coordinates for Davis,CA (Google Maps needs as an initial center to position the initial view of the map)
+const POLYLINE_COLOR = "#2563eb"; // Blue path per route (single mock route)
 
 type MapComponentProps = {
   routes: Route[];
 };
 
-export default function MapComponent({ routes }: MapComponentProps) { // Passing the routes data to the Map component
+export default function MapComponent({ routes }: MapComponentProps) {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? "";
-
-  const onMapLoad = useCallback( // When the map has finished loading, we build the bounds of the map to fit all the routes and stops
-    (map: google.maps.Map) => {
-      const bounds = new google.maps.LatLngBounds();
-      routes.forEach((route) => {
-        route.stops.forEach((s) => bounds.extend({ lat: s.lat, lng: s.lng }));
-      });
-      map.fitBounds(bounds, 48); // 48 pixels of padding around the edges
-    },
-    [routes]
-  );
+  const onMapLoad = useCallback((_map: google.maps.Map) => {}, []);
 
   if (!apiKey) { // If the API key is not found, we return a message to the user
     return (

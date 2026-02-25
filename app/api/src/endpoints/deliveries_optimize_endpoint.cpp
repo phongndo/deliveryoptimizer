@@ -24,9 +24,16 @@ constexpr std::string_view kDefaultVroomHost = "osrm";
 constexpr std::string_view kDefaultVroomPort = "5001";
 constexpr std::string_view kDefaultVroomTimeoutSeconds = "30";
 
+struct Coordinate {
+  double lon;
+  double lat;
+};
+
 struct VehicleInput {
   std::string external_id;
   int capacity;
+  std::optional<Coordinate> start;
+  std::optional<Coordinate> end;
 };
 
 struct JobInput {
@@ -42,11 +49,6 @@ struct OptimizeRequestInput {
   double depot_lat;
   std::vector<VehicleInput> vehicles;
   std::vector<JobInput> jobs;
-};
-
-struct Coordinate {
-  double lon;
-  double lat;
 };
 
 class ScopedTempFile {
@@ -157,9 +159,14 @@ ParseVehicle(const Json::Value& vehicle, const std::string_view base_field, Json
 
   const Json::Value& vehicle_id = vehicle["id"];
   const Json::Value& capacity = vehicle["capacity"];
+  const Json::Value& start = vehicle["start"];
+  const Json::Value& end = vehicle["end"];
 
   bool valid_vehicle = true;
   std::string external_id;
+  std::optional<Coordinate> start_coordinate;
+  std::optional<Coordinate> end_coordinate;
+
   if (!vehicle_id.isString() || vehicle_id.asString().empty()) {
     AddValidationIssue(issues, std::string{base_field} + ".id", "must be a non-empty string.");
     valid_vehicle = false;
@@ -174,11 +181,32 @@ ParseVehicle(const Json::Value& vehicle, const std::string_view base_field, Json
     valid_vehicle = false;
   }
 
+  if (vehicle.isMember("start")) {
+    start_coordinate = ParseCoordinate(start);
+    if (!start_coordinate.has_value()) {
+      AddValidationIssue(issues, std::string{base_field} + ".start",
+                         "must be an array [lon, lat] with numeric values.");
+      valid_vehicle = false;
+    }
+  }
+
+  if (vehicle.isMember("end")) {
+    end_coordinate = ParseCoordinate(end);
+    if (!end_coordinate.has_value()) {
+      AddValidationIssue(issues, std::string{base_field} + ".end",
+                         "must be an array [lon, lat] with numeric values.");
+      valid_vehicle = false;
+    }
+  }
+
   if (!valid_vehicle) {
     return std::nullopt;
   }
 
-  return VehicleInput{.external_id = std::move(external_id), .capacity = parsed_capacity.value()};
+  return VehicleInput{.external_id = std::move(external_id),
+                      .capacity = parsed_capacity.value(),
+                      .start = start_coordinate,
+                      .end = end_coordinate};
 }
 
 [[nodiscard]] std::optional<JobInput>
@@ -346,9 +374,17 @@ void ParseJobs(const Json::Value& root, OptimizeRequestInput& parsed_input, Json
   for (std::size_t index = 0U; index < input.vehicles.size(); ++index) {
     const VehicleInput& vehicle_input = input.vehicles[index];
     Json::Value vehicle{Json::objectValue};
+    const Coordinate start = vehicle_input.start.value_or(Coordinate{
+        .lon = input.depot_lon,
+        .lat = input.depot_lat,
+    });
+    const Coordinate end = vehicle_input.end.value_or(Coordinate{
+        .lon = input.depot_lon,
+        .lat = input.depot_lat,
+    });
     vehicle["id"] = static_cast<Json::UInt64>(index + 1U);
-    vehicle["start"] = BuildLocation(input.depot_lon, input.depot_lat);
-    vehicle["end"] = BuildLocation(input.depot_lon, input.depot_lat);
+    vehicle["start"] = BuildLocation(start.lon, start.lat);
+    vehicle["end"] = BuildLocation(end.lon, end.lat);
     vehicle["capacity"] = BuildUnitArray(vehicle_input.capacity);
     vehicle["description"] = vehicle_input.external_id;
     payload["vehicles"].append(vehicle);

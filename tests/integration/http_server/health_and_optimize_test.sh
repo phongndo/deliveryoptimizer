@@ -1,48 +1,20 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-if [[ $# -lt 1 ]]; then
-  echo "usage: $0 <server-binary> [curl-binary]" >&2
-  exit 2
-fi
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=tests/integration/http_server/http_server_helpers.sh
+source "${script_dir}/http_server_helpers.sh"
 
-server_bin="$1"
-curl_bin="${2:-curl}"
-default_port="$((20000 + ($$ % 20000)))"
-port="${DELIVERYOPTIMIZER_TEST_PORT:-${default_port}}"
-health_file="$(mktemp)"
-optimize_file="$(mktemp)"
-log_file="$(mktemp)"
+http_server_init 20000 "$@"
+health_file="${work_dir}/health.json"
+optimize_file="${work_dir}/optimize.json"
 
-cleanup() {
-  if [[ -n "${server_pid:-}" ]]; then
-    kill "${server_pid}" >/dev/null 2>&1 || true
-    wait "${server_pid}" >/dev/null 2>&1 || true
-  fi
-  rm -f "${health_file}" "${optimize_file}" "${log_file}"
-}
-trap cleanup EXIT
-
-env DELIVERYOPTIMIZER_PORT="${port}" "${server_bin}" >"${log_file}" 2>&1 &
-server_pid=$!
-
-ready=false
-for _ in $(seq 1 50); do
-  if "${curl_bin}" -fsS "http://127.0.0.1:${port}/optimize?deliveries=1&vehicles=1" >/dev/null 2>&1; then
-    ready=true
-    break
-  fi
-  sleep 0.2
-done
-
-if [[ "${ready}" != "true" ]]; then
-  echo "server failed to start on port ${port}" >&2
-  cat "${log_file}" >&2 || true
-  exit 1
-fi
+# shellcheck disable=SC2119
+http_server_start
+http_server_wait_until_ready
 
 health_http_code="$("${curl_bin}" -sS -o "${health_file}" -w "%{http_code}" \
-  "http://127.0.0.1:${port}/health")"
+  "$(http_server_url /health)")"
 
 if [[ "${health_http_code}" != "200" && "${health_http_code}" != "503" ]]; then
   echo "health endpoint returned unexpected HTTP ${health_http_code}" >&2
@@ -56,7 +28,7 @@ if ! grep -Eq '"status"[[:space:]]*:[[:space:]]*"(ok|degraded)"' "${health_file}
   exit 1
 fi
 
-"${curl_bin}" -fsS "http://127.0.0.1:${port}/optimize?deliveries=4&vehicles=2" >"${optimize_file}"
+"${curl_bin}" -fsS "$(http_server_url '/optimize?deliveries=4&vehicles=2')" >"${optimize_file}"
 
 if ! grep -Eq '"summary"[[:space:]]*:[[:space:]]*"optimized-plan: deliveries=4, vehicles=2"' \
   "${optimize_file}"; then

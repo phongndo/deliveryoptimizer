@@ -1,6 +1,7 @@
 #include "deliveryoptimizer/api/endpoints/deliveries_optimize_endpoint.hpp"
 
 #include <chrono>
+#include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <drogon/drogon.h>
@@ -27,6 +28,10 @@ constexpr std::string_view kDefaultVroomHost = "osrm";
 constexpr std::string_view kDefaultVroomPort = "5001";
 constexpr std::string_view kDefaultVroomTimeoutSeconds = "30";
 constexpr int kDefaultJobServiceSeconds = 300;
+constexpr double kMinLongitude = -180.0;
+constexpr double kMaxLongitude = 180.0;
+constexpr double kMinLatitude = -90.0;
+constexpr double kMaxLatitude = 90.0;
 
 struct Coordinate {
   double lon;
@@ -134,7 +139,14 @@ void AddValidationIssue(Json::Value& issues, const std::string_view field,
     return std::nullopt;
   }
 
-  return Coordinate{.lon = value[0].asDouble(), .lat = value[1].asDouble()};
+  const double lon = value[0].asDouble();
+  const double lat = value[1].asDouble();
+  if (!std::isfinite(lon) || !std::isfinite(lat) || lon < kMinLongitude || lon > kMaxLongitude ||
+      lat < kMinLatitude || lat > kMaxLatitude) {
+    return std::nullopt;
+  }
+
+  return Coordinate{.lon = lon, .lat = lat};
 }
 
 [[nodiscard]] std::optional<int> ParseBoundedInt(const Json::Value& value, const int min_value) {

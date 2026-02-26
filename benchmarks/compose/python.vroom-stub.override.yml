@@ -1,0 +1,6 @@
+services:
+  deliveryoptimizer-api:
+    environment:
+      VROOM_BIN: /bench/vroom_stub.sh
+    volumes:
+      - ${BENCH_VROOM_STUB_HOST_PATH:?set BENCH_VROOM_STUB_HOST_PATH}:/bench/vroom_stub.sh:ro

@@ -89,5 +89,9 @@ app/ui/.vercel/
 services/osrm/data/
 services/vroom/data/
 
+# Benchmark artifacts
+benchmarks/reports/
+.bench-worktrees/
+
 # macOS / editor noise
 .DS_Store

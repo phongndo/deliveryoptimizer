@@ -1,0 +1,53 @@
+{
+  "depot": {
+    "location": [7.4236, 43.7384]
+  },
+  "vehicles": [
+    {
+      "id": "van-1",
+      "capacity": 8
+    },
+    {
+      "id": "van-2",
+      "capacity": 8
+    }
+  ],
+  "jobs": [
+    {
+      "id": "order-1",
+      "location": [7.4212, 43.7308],
+      "demand": 2,
+      "service": 180
+    },
+    {
+      "id": "order-2",
+      "location": [7.4261, 43.7412],
+      "demand": 1,
+      "service": 120
+    },
+    {
+      "id": "order-3",
+      "location": [7.4287, 43.7428],
+      "demand": 1,
+      "service": 180
+    },
+    {
+      "id": "order-4",
+      "location": [7.4199, 43.7345],
+      "demand": 1,
+      "service": 120
+    },
+    {
+      "id": "order-5",
+      "location": [7.4292, 43.7375],
+      "demand": 2,
+      "service": 180
+    },
+    {
+      "id": "order-6",
+      "location": [7.4171, 43.7324],
+      "demand": 1,
+      "service": 90
+    }
+  ]
+}

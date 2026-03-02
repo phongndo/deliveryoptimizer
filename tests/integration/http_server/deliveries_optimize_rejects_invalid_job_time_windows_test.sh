@@ -80,3 +80,45 @@ if [[ -f "${vroom_called_file}" ]]; then
   cat "${response_file}" >&2 || true
   exit 1
 fi
+
+cat >"${payload_file}" <<'JSON'
+{
+  "depot": { "location": [7.4236, 43.7384] },
+  "vehicles": [
+    { "id": "van-1", "capacity": 8 }
+  ],
+  "jobs": [
+    {
+      "id": "order-1",
+      "location": [7.4212, 43.7308],
+      "demand": 1,
+      "service": 180,
+      "time_windows": []
+    }
+  ]
+}
+JSON
+
+http_code="$("${curl_bin}" -sS -o "${response_file}" -w "%{http_code}" \
+  -X POST \
+  -H "Content-Type: application/json" \
+  --data-binary "@${payload_file}" \
+  "$(http_server_url /api/v1/deliveries/optimize)")"
+
+if [[ "${http_code}" != "400" ]]; then
+  echo "expected HTTP 400 for empty jobs[].time_windows, got ${http_code}" >&2
+  cat "${response_file}" >&2 || true
+  exit 1
+fi
+
+if ! grep -Eq '"field"[[:space:]]*:[[:space:]]*"jobs\[0\]\.time_windows"' "${response_file}"; then
+  echo "expected validation issue for jobs[0].time_windows" >&2
+  cat "${response_file}" >&2 || true
+  exit 1
+fi
+
+if [[ -f "${vroom_called_file}" ]]; then
+  echo "expected validation failure before invoking VROOM" >&2
+  cat "${response_file}" >&2 || true
+  exit 1
+fi

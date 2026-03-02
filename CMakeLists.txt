@@ -10,6 +10,11 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(DELIVERYOPTIMIZER_ENABLE_WARNINGS "Enable strict compiler warnings." ON)
 option(DELIVERYOPTIMIZER_ENABLE_TESTS "Build unit tests." ON)
 option(DELIVERYOPTIMIZER_ENABLE_SANITIZERS "Enable sanitizer instrumentation for Debug builds." OFF)
+option(
+  DELIVERYOPTIMIZER_LINK_COMPILE_COMMANDS_IN_SOURCE
+  "Create a source-tree compile_commands.json symlink for editor tooling."
+  OFF
+)
 set(
   DELIVERYOPTIMIZER_SANITIZERS
   "address;undefined"
@@ -22,26 +27,45 @@ include(CompilerWarnings)
 include(Sanitizers)
 deliveryoptimizer_enable_sanitizers()
 
-if(CMAKE_EXPORT_COMPILE_COMMANDS AND NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
-  execute_process(COMMAND "${CMAKE_COMMAND}" -E rm -f "${CMAKE_SOURCE_DIR}/compile_commands.json")
-  execute_process(
-    COMMAND "${CMAKE_COMMAND}" -E create_symlink
-            "${CMAKE_BINARY_DIR}/compile_commands.json"
-            "${CMAKE_SOURCE_DIR}/compile_commands.json"
-    RESULT_VARIABLE create_compile_commands_symlink_result
-    ERROR_VARIABLE create_compile_commands_symlink_error
-  )
-  if(NOT create_compile_commands_symlink_result EQUAL 0)
+if(DELIVERYOPTIMIZER_LINK_COMPILE_COMMANDS_IN_SOURCE)
+  if(NOT CMAKE_EXPORT_COMPILE_COMMANDS)
     message(
       WARNING
-      "Failed to create compile_commands.json symlink: ${create_compile_commands_symlink_error}. "
-      "Falling back to copying the file."
+      "DELIVERYOPTIMIZER_LINK_COMPILE_COMMANDS_IN_SOURCE is ON but CMAKE_EXPORT_COMPILE_COMMANDS is OFF."
     )
+  elseif(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
+    message(STATUS "In-source build already writes compile_commands.json in the source tree.")
+  else()
+    set(DELIVERYOPTIMIZER_SOURCE_COMPILE_COMMANDS "${CMAKE_SOURCE_DIR}/compile_commands.json")
+    set(DELIVERYOPTIMIZER_BUILD_COMPILE_COMMANDS "${CMAKE_BINARY_DIR}/compile_commands.json")
+
     execute_process(
-      COMMAND "${CMAKE_COMMAND}" -E copy_if_different
-              "${CMAKE_BINARY_DIR}/compile_commands.json"
-              "${CMAKE_SOURCE_DIR}/compile_commands.json"
+      COMMAND "${CMAKE_COMMAND}" -E rm -f "${DELIVERYOPTIMIZER_SOURCE_COMPILE_COMMANDS}"
+      RESULT_VARIABLE remove_compile_commands_result
+      ERROR_VARIABLE remove_compile_commands_error
     )
+    if(NOT remove_compile_commands_result EQUAL 0)
+      message(
+        WARNING
+        "Failed to remove ${DELIVERYOPTIMIZER_SOURCE_COMPILE_COMMANDS}: "
+        "${remove_compile_commands_error}. Skipping source-tree compile_commands.json link creation."
+      )
+    else()
+      execute_process(
+        COMMAND "${CMAKE_COMMAND}" -E create_symlink
+                "${DELIVERYOPTIMIZER_BUILD_COMPILE_COMMANDS}"
+                "${DELIVERYOPTIMIZER_SOURCE_COMPILE_COMMANDS}"
+        RESULT_VARIABLE create_compile_commands_symlink_result
+        ERROR_VARIABLE create_compile_commands_symlink_error
+      )
+      if(NOT create_compile_commands_symlink_result EQUAL 0)
+        message(
+          WARNING
+          "Failed to create compile_commands.json symlink in source tree: "
+          "${create_compile_commands_symlink_error}. Use ${DELIVERYOPTIMIZER_BUILD_COMPILE_COMMANDS} directly."
+        )
+      endif()
+    endif()
   endif()
 endif()
 

@@ -67,6 +67,12 @@ Example response (trimmed):
 
 ## Run (CMake)
 
+Generate the local Conan toolchain + presets once (Debug):
+
+```bash
+conan install . --output-folder=build/dev --build=missing -s build_type=Debug
+```
+
 1. `cmake --preset dev`
 2. `cmake --build --preset dev --target build`
 3. `cmake --build --preset dev --target up`

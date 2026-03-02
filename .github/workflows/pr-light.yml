@@ -25,6 +25,12 @@ jobs:
         with:
           packages: ninja-build
           version: 1.0
+      - name: Install Conan
+        run: |
+          python -m pip install --user "conan>=2,<3"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - name: Conan install (Debug)
+        run: conan install . --output-folder=build/dev --build=missing -s build_type=Debug
       - run: cmake --version
       - run: cmake --preset dev
       - run: docker compose -f infra/compose/routing.compose.yml --env-file infra/env/routing.env config

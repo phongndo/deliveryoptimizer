@@ -10,8 +10,19 @@ server_bin="$1"
 curl_bin="${2:-curl}"
 default_port="$((30000 + ($$ % 20000)))"
 port="${DELIVERYOPTIMIZER_TEST_PORT:-${default_port}}"
-response_file="$(mktemp)"
-log_file="$(mktemp)"
+
+mktemp_file() {
+  local template="${TMPDIR:-/tmp}/deliveryoptimizer-http.XXXXXX"
+  local path
+  path="$(mktemp "${template}" 2>/dev/null)" && {
+    echo "${path}"
+    return
+  }
+  mktemp -t deliveryoptimizer-http
+}
+
+response_file="$(mktemp_file)"
+log_file="$(mktemp_file)"
 
 cleanup() {
   if [[ -n "${server_pid:-}" ]]; then

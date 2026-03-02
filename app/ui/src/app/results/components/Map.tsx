@@ -1,8 +1,8 @@
-// Map component for the Results page: Google Map, route polylines, and delivery stops as Advanced Markers (vis.gl = Google's newer API).
+// Map component for the Results page: Google Map, route polylines, and delivery stops.
 "use client";
 
 import { useCallback, Fragment } from "react";
-import { LoadScriptNext, GoogleMap, Marker, Polyline } from "@react-google-maps/api"; // Loading the Google Maps API
+import { LoadScriptNext, GoogleMap, Marker, Polyline } from "@react-google-maps/api";
 import type { Route } from "../types";
 
 const DAVIS_CENTER = { lat: 38.5449, lng: -121.7405 }; // Map center coordinates for Davis,CA (Google Maps needs as an initial center to position the initial view of the map)
@@ -16,7 +16,7 @@ export default function MapComponent({ routes }: MapComponentProps) {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? "";
   const onMapLoad = useCallback((_map: google.maps.Map) => {}, []);
 
-  if (!apiKey) { // If the API key is not found, we return a message to the user
+  if (!apiKey) {
     return (
       <div className="min-h-[60vh] grid place-items-center bg-zinc-100 text-zinc-600">
         Missing NEXT_PUBLIC_GOOGLE_MAPS_KEY
@@ -24,24 +24,22 @@ export default function MapComponent({ routes }: MapComponentProps) {
     );
   }
 
-  // Page gives us the space (outer + inner div). Here we add the map and tell it how to fill that space
   return (
     <div className="w-full h-full min-h-[70vh] rounded-lg">
       <LoadScriptNext googleMapsApiKey={apiKey}>
-        {/* mapContainerStyle: map fills its parent (100% width/height, min height so it has a real size). */}
         <GoogleMap
           center={DAVIS_CENTER}
           zoom={11}
           onLoad={onMapLoad}
           mapContainerStyle={{ width: "100%", height: "100%", minHeight: "70vh" }}
         >
-        {routes.map((route) => { // Rendering each route
-          const sortedStops = [...route.stops].sort((a, b) => a.sequence - b.sequence); // Sorting the stops based on the sequence
+        {routes.map((route) => {
+          const sortedStops = [...route.stops].sort((a, b) => a.sequence - b.sequence);
           const path = sortedStops.map((s) => ({ lat: s.lat, lng: s.lng }));
 
-          return ( // Using Fragment to wrap the Polyline and markers (and holds the key for the route), so they stay attached to map, whereas with div before treated as a separate DOM element 
+          return (
             <Fragment key={route.vehicleId}>
-              <Polyline // Drawing the route path connecting stops in order (blue line)
+              <Polyline
                 path={path}
                 options={{
                   strokeColor: POLYLINE_COLOR,
@@ -50,7 +48,7 @@ export default function MapComponent({ routes }: MapComponentProps) {
                 }}
               />
               {sortedStops.map((stop) => (
-                <Marker // Drawing one marker for each stop
+                <Marker
                   key={stop.id}
                   position={{ lat: stop.lat, lng: stop.lng }}
                   title={stop.address}

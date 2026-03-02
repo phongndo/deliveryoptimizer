@@ -1,11 +1,15 @@
 #include "deliveryoptimizer/api/endpoints/health_endpoint.hpp"
 
+#include <chrono>
 #include <cstdlib>
 #include <drogon/drogon.h>
 #include <filesystem>
+#include <mutex>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
+#include <unistd.h>
 
 namespace {
 
@@ -14,6 +18,7 @@ constexpr std::string_view kDefaultOsrmUrl = "http://127.0.0.1:5001";
 constexpr std::string_view kOsrmProbePath =
     "/nearest/v1/driving/7.4236,43.7384?number=1&generate_hints=false";
 constexpr double kOsrmProbeTimeoutSeconds = 4.0;
+constexpr std::chrono::seconds kOsrmProbeCacheTtl{2};
 
 struct OsrmProbeResult {
   bool ready;
@@ -44,8 +49,12 @@ struct OsrmProbeResult {
 [[nodiscard]] bool IsVroomBinaryReady() {
   const std::string vroom_bin = ResolveEnvOrDefault("VROOM_BIN", kDefaultVroomBin);
   std::error_code error;
-  const bool exists = std::filesystem::exists(vroom_bin, error);
-  return exists && !error;
+  const std::filesystem::file_status status = std::filesystem::status(vroom_bin, error);
+  if (error || !std::filesystem::is_regular_file(status)) {
+    return false;
+  }
+
+  return ::access(vroom_bin.c_str(), X_OK) == 0;
 }
 
 [[nodiscard]] OsrmProbeResult EvaluateOsrmProbe(const drogon::ReqResult result,
@@ -103,6 +112,46 @@ struct OsrmProbeResult {
   return response;
 }
 
+[[nodiscard]] drogon::HttpClientPtr GetOsrmHttpClient() {
+  static drogon::HttpClientPtr client = drogon::HttpClient::newHttpClient(ResolveOsrmBaseUrl());
+  return client;
+}
+
+struct OsrmProbeCache {
+  std::mutex mutex;
+  std::optional<OsrmProbeResult> cached_result;
+  std::chrono::steady_clock::time_point cached_at{};
+};
+
+OsrmProbeCache& GetOsrmProbeCache() {
+  static OsrmProbeCache cache;
+  return cache;
+}
+
+std::optional<OsrmProbeResult> GetCachedOsrmProbe() {
+  auto& cache = GetOsrmProbeCache();
+
+  std::lock_guard<std::mutex> lock(cache.mutex);
+  if (!cache.cached_result.has_value()) {
+    return std::nullopt;
+  }
+
+  const auto now = std::chrono::steady_clock::now();
+  if (now - cache.cached_at > kOsrmProbeCacheTtl) {
+    return std::nullopt;
+  }
+
+  return cache.cached_result;
+}
+
+void CacheOsrmProbe(const OsrmProbeResult& result) {
+  auto& cache = GetOsrmProbeCache();
+
+  std::lock_guard<std::mutex> lock(cache.mutex);
+  cache.cached_result = result;
+  cache.cached_at = std::chrono::steady_clock::now();
+}
+
 } // namespace
 
 namespace deliveryoptimizer::api {
@@ -112,7 +161,12 @@ void RegisterHealthEndpoint(drogon::HttpAppFramework& app) {
       "/health", [](const drogon::HttpRequestPtr& /*request*/,
                     std::function<void(const drogon::HttpResponsePtr&)>&& callback) {
         const bool vroom_ready = IsVroomBinaryReady();
-        auto osrm_client = drogon::HttpClient::newHttpClient(ResolveOsrmBaseUrl());
+        if (const auto cached_probe = GetCachedOsrmProbe()) {
+          std::move(callback)(BuildHealthResponse(vroom_ready, *cached_probe));
+          return;
+        }
+
+        auto osrm_client = GetOsrmHttpClient();
         auto osrm_probe_request = drogon::HttpRequest::newHttpRequest();
         osrm_probe_request->setMethod(drogon::Get);
         osrm_probe_request->setPath(std::string{kOsrmProbePath});
@@ -123,6 +177,7 @@ void RegisterHealthEndpoint(drogon::HttpAppFramework& app) {
                 const drogon::ReqResult result, const drogon::HttpResponsePtr& response) mutable {
               (void)osrm_client;
               const OsrmProbeResult osrm_probe = EvaluateOsrmProbe(result, response);
+              CacheOsrmProbe(osrm_probe);
               std::move(callback)(BuildHealthResponse(vroom_ready, osrm_probe));
             },
             kOsrmProbeTimeoutSeconds);

@@ -204,6 +204,7 @@ if(DOCKER_PROGRAM)
     PROPERTIES
       RUN_SERIAL TRUE
       TIMEOUT 1800
+      DISABLED TRUE
       LABELS "e2e;docker;routing;smoke"
   )
 

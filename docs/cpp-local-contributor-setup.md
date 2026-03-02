@@ -94,7 +94,7 @@ Current label taxonomy:
 - `e2e`: Docker Compose based tests.
 - `docker`: tests that require Docker.
 - `api`: tests that hit API endpoints.
-- `regression`: known-failing bug-regression coverage tests.
+- `regression`: passing tests that cover previously fixed bugs (regression coverage).
 
 ## 6) Run the API locally
 

@@ -52,9 +52,10 @@ void RegisterOsrmProxyEndpoint(drogon::HttpAppFramework& app) {
 
   app.registerHandlerViaRegex(
       "^/api/v1/osrm/(.+)$",
-      [osrm_client = std::move(osrm_client)](const drogon::HttpRequestPtr& request,
-                                             std::function<void(const drogon::HttpResponsePtr&)>&& callback,
-                                             const std::string& path_suffix) mutable {
+      [osrm_client =
+           std::move(osrm_client)](const drogon::HttpRequestPtr& request,
+                                   std::function<void(const drogon::HttpResponsePtr&)>&& callback,
+                                   const std::string& path_suffix) mutable {
         const auto service_name = ResolveServiceName(path_suffix);
         if (!IsAllowedService(service_name)) {
           Json::Value body;

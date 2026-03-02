@@ -43,6 +43,9 @@ constexpr double kMinLongitude = -180.0;
 constexpr double kMaxLongitude = 180.0;
 constexpr double kMinLatitude = -90.0;
 constexpr double kMaxLatitude = 90.0;
+constexpr Json::ArrayIndex kMaxOptimizeVehicles = 2000U;
+constexpr Json::ArrayIndex kMaxOptimizeJobs = 10000U;
+constexpr std::size_t kMaxVroomOutputBytes = 8U * 1024U * 1024U;
 
 struct Coordinate {
   double lon;
@@ -546,6 +549,10 @@ void ParseVehicles(const Json::Value& root, OptimizeRequestInput& parsed_input,
     AddValidationIssue(issues, "vehicles", "must not be empty.");
     return;
   }
+  if (vehicles.size() > kMaxOptimizeVehicles) {
+    AddValidationIssue(issues, "vehicles", "must contain at most 2000 items.");
+    return;
+  }
 
   for (Json::ArrayIndex index = 0U; index < vehicles.size(); ++index) {
     const std::string base_field = "vehicles[" + std::to_string(index) + "]";
@@ -565,6 +572,10 @@ void ParseJobs(const Json::Value& root, OptimizeRequestInput& parsed_input, Json
 
   if (jobs.empty()) {
     AddValidationIssue(issues, "jobs", "must not be empty.");
+    return;
+  }
+  if (jobs.size() > kMaxOptimizeJobs) {
+    AddValidationIssue(issues, "jobs", "must contain at most 10000 items.");
     return;
   }
 
@@ -883,6 +894,9 @@ void ApplyExternalIdsToUnassigned(Json::Value& unassigned,
   const ssize_t read_bytes = read(output_read_end.Get(), buffer.data(), buffer.size());
   if (read_bytes > 0) {
     output_text.append(buffer.data(), static_cast<std::size_t>(read_bytes));
+    if (output_text.size() > kMaxVroomOutputBytes) {
+      return DrainReadStatus::kFailed;
+    }
     return DrainReadStatus::kReadData;
   }
   if (read_bytes == 0) {

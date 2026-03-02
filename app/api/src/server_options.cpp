@@ -32,10 +32,11 @@ constexpr std::size_t kMaxWorkerThreads = 64U;
 [[nodiscard]] std::size_t ResolveThreadCount() {
   const auto detected = std::thread::hardware_concurrency();
   const std::size_t default_threads = detected == 0U ? 1U : static_cast<std::size_t>(detected);
+  const std::size_t bounded_default_threads = std::min(default_threads, kMaxWorkerThreads);
 
   const char* raw_threads = std::getenv("DELIVERYOPTIMIZER_THREADS");
   if (raw_threads == nullptr || *raw_threads == '\0') {
-    return default_threads;
+    return bounded_default_threads;
   }
 
   errno = 0;
@@ -43,7 +44,7 @@ constexpr std::size_t kMaxWorkerThreads = 64U;
   const long parsed = std::strtol(raw_threads, &end, 10);
   const bool invalid = errno != 0 || end == raw_threads || *end != '\0' || parsed <= 0L;
   if (invalid) {
-    return default_threads;
+    return bounded_default_threads;
   }
 
   const auto requested_threads = static_cast<std::size_t>(parsed);

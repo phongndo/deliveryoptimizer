@@ -28,7 +28,21 @@ if(CMAKE_EXPORT_COMPILE_COMMANDS AND NOT CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_
     COMMAND "${CMAKE_COMMAND}" -E create_symlink
             "${CMAKE_BINARY_DIR}/compile_commands.json"
             "${CMAKE_SOURCE_DIR}/compile_commands.json"
+    RESULT_VARIABLE create_compile_commands_symlink_result
+    ERROR_VARIABLE create_compile_commands_symlink_error
   )
+  if(NOT create_compile_commands_symlink_result EQUAL 0)
+    message(
+      WARNING
+      "Failed to create compile_commands.json symlink: ${create_compile_commands_symlink_error}. "
+      "Falling back to copying the file."
+    )
+    execute_process(
+      COMMAND "${CMAKE_COMMAND}" -E copy_if_different
+              "${CMAKE_BINARY_DIR}/compile_commands.json"
+              "${CMAKE_SOURCE_DIR}/compile_commands.json"
+    )
+  endif()
 endif()
 
 add_subdirectory(libs/domain)

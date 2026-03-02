@@ -4,9 +4,9 @@ This document describes the deployment assets for the C++ Drogon HTTP server (`d
 
 ## Files
 
-- `services/http-server.Dockerfile`: ARM-aware container build for the API.
-- `compose/docker-compose.arm64.yml`: Compose service definition.
-- `env/http-server.arm64.env`: Default ARM runtime/build settings.
+- `deploy/services/http-server.Dockerfile`: ARM-aware container build for the API.
+- `deploy/compose/docker-compose.arm64.yml`: Compose service definition.
+- `deploy/env/http-server.arm64.env`: Default ARM runtime/build settings.
 
 ## Run on ARM host
 

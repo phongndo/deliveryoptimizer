@@ -8,6 +8,7 @@ This repository provisions a source-built routing stack for small-business deliv
 
 ## Structure
 
+- `app/ui`: Frontend application (Next.js)
 - `engine/osrm`: OSRM build/runtime image
 - `services/deliveryoptimizer-api`: Python HTTP router + VROOM build image
 - `infra/compose`: Docker Compose definitions
@@ -99,18 +100,24 @@ Frontend application for optimizing delivery routes.
 
 ## Environment Setup
 
-Copy `.env.example` to `.env.local`:
+From the `app/ui` directory, copy `.env.example` to `.env.local`:
 
 ```bash
+cd app/ui
 cp .env.example .env.local
+```
 
-Configure your backend API URL:
-NEXT_PUBLIC_API_URL=http://localhost:5050
+Configure your backend API URL in `.env.local`:
+`NEXT_PUBLIC_API_URL=http://localhost:5050`
 
-Development
+## Development
 
+From `app/ui`:
+
+```bash
 npm install
 npm run dev
+```
 
 Open http://localhost:3000
 

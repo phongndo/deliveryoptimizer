@@ -1,7 +1,10 @@
 import { retry } from "@/lib/utils/retry"
 import { buildPayload } from "@/lib/solver/payloadBuilder" 
+import { buildPayload } from "@/lib/solver/payloadBuilder" 
 
 const VROOM_URL =
+  (process.env.VROOM_URL ?? "http://localhost:3000")
+    .replace(/\/$/, "")
   (process.env.VROOM_URL ?? "http://localhost:3000")
     .replace(/\/$/, "")
 
@@ -19,6 +22,7 @@ async function fetchWithTimeout(
   const controller = new AbortController()
 
   const timeoutId = setTimeout(() => {
+  const timeoutId = setTimeout(() => {
     controller.abort()
   }, TIMEOUT_MS)
 
@@ -28,6 +32,7 @@ async function fetchWithTimeout(
       signal: controller.signal
     })
   } finally {
+    clearTimeout(timeoutId)
     clearTimeout(timeoutId)
   }
 }

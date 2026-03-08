@@ -8,15 +8,15 @@
 #include <optional>
 #include <string>
 #include <string_view>
-#include <utility>
 #include <unistd.h>
+#include <utility>
 
 namespace {
 
 constexpr std::string_view kDefaultVroomBin = "/usr/local/bin/vroom";
 constexpr std::string_view kDefaultOsrmUrl = "http://127.0.0.1:5001";
 constexpr std::string_view kOsrmProbePath =
-    "/nearest/v1/driving/7.4236,43.7384?number=1&generate_hints=false";
+    "/nearest/v1/driving/-122.4194,37.7749?number=1&generate_hints=false";
 constexpr double kOsrmProbeTimeoutSeconds = 4.0;
 constexpr std::chrono::seconds kOsrmProbeCacheTtl{2};
 

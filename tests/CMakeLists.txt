@@ -124,6 +124,14 @@ set_tests_properties(DeliveryOptimizerOsrmProxyTest.RejectsDisallowedService PRO
 deliveryoptimizer_set_local_http_test_port(DeliveryOptimizerOsrmProxyTest.RejectsDisallowedService 34000)
 
 add_test(
+  NAME DeliveryOptimizerOsrmProxyTest.RejectsTripService
+  COMMAND "${BASH_PROGRAM}"
+          "${CMAKE_CURRENT_SOURCE_DIR}/integration/http_server/osrm_proxy_rejects_trip_service_test.sh"
+          "$<TARGET_FILE:deliveryoptimizer_api>" "${CURL_PROGRAM}"
+)
+set_tests_properties(DeliveryOptimizerOsrmProxyTest.RejectsTripService PROPERTIES TIMEOUT 30)
+
+add_test(
   NAME DeliveryOptimizerOsrmProxyTest.ForwardsAllowedServiceWithQueryString
   COMMAND "${BASH_PROGRAM}"
           "${CMAKE_CURRENT_SOURCE_DIR}/integration/http_server/osrm_proxy_forwards_allowed_service_with_query_test.sh"

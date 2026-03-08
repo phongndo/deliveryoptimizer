@@ -5,6 +5,6 @@
 
 TEST(OptimizeServiceTest, ReturnsNoPlanWhenDeliveriesMissing) {
   const deliveryoptimizer::domain::DeliveryProblem problem{0U, 1U};
-  EXPECT_EQ(deliveryoptimizer::application::OptimizeService::Optimize(problem),
+  EXPECT_EQ(deliveryoptimizer::application::Optimize(problem),
             "no-plan: deliveries=0 or vehicles=0");
 }

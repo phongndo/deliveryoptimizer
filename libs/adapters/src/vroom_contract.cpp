@@ -54,8 +54,7 @@ namespace {
 
 } // namespace
 
-std::string VroomContract::BuildSolvePayload(const std::size_t deliveries,
-                                             const std::size_t vehicles) {
+std::string BuildSolvePayload(const std::size_t deliveries, const std::size_t vehicles) {
   Json::Value payload{Json::objectValue};
   payload["jobs"] = Json::Value{Json::arrayValue};
   payload["vehicles"] = Json::Value{Json::arrayValue};
@@ -83,8 +82,7 @@ std::string VroomContract::BuildSolvePayload(const std::size_t deliveries,
   return Json::writeString(writer_builder, payload);
 }
 
-std::optional<VroomSolveSummary>
-VroomContract::ParseSolveSummary(const std::string_view response_json) {
+std::optional<VroomSolveSummary> ParseSolveSummary(const std::string_view response_json) {
   const auto root = ParseJson(response_json);
   if (!root.has_value()) {
     return std::nullopt;
@@ -105,7 +103,7 @@ VroomContract::ParseSolveSummary(const std::string_view response_json) {
                            static_cast<std::size_t>(unassigned.asUInt64())};
 }
 
-std::string VroomContract::DescribeSolveSummary(const VroomSolveSummary& summary) {
+std::string DescribeSolveSummary(const VroomSolveSummary& summary) {
   std::ostringstream stream;
   stream << "routes=" << summary.routes << ", unassigned=" << summary.unassigned;
   return stream.str();

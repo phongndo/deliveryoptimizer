@@ -5,5 +5,5 @@
 
 TEST(VroomContractTest, ParseSolveSummaryReturnsNulloptForInvalidJson) {
   constexpr std::string_view invalid = "{summary: [";
-  EXPECT_FALSE(deliveryoptimizer::adapters::VroomContract::ParseSolveSummary(invalid).has_value());
+  EXPECT_FALSE(deliveryoptimizer::adapters::ParseSolveSummary(invalid).has_value());
 }

@@ -4,6 +4,5 @@
 
 TEST(VroomContractTest, DescribeSolveSummaryUsesStableContract) {
   const deliveryoptimizer::adapters::VroomSolveSummary summary{.routes = 4U, .unassigned = 1U};
-  EXPECT_EQ(deliveryoptimizer::adapters::VroomContract::DescribeSolveSummary(summary),
-            "routes=4, unassigned=1");
+  EXPECT_EQ(deliveryoptimizer::adapters::DescribeSolveSummary(summary), "routes=4, unassigned=1");
 }

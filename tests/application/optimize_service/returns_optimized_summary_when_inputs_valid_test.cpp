@@ -5,6 +5,6 @@
 
 TEST(OptimizeServiceTest, ReturnsOptimizedSummaryWhenInputsValid) {
   const deliveryoptimizer::domain::DeliveryProblem problem{6U, 2U};
-  EXPECT_EQ(deliveryoptimizer::application::OptimizeService::Optimize(problem),
+  EXPECT_EQ(deliveryoptimizer::application::Optimize(problem),
             "optimized-plan: deliveries=6, vehicles=2");
 }

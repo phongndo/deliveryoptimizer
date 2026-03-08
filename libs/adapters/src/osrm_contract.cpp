@@ -27,7 +27,7 @@ namespace {
 
 } // namespace
 
-std::string OsrmContract::BuildTablePath(const std::vector<Coordinate>& coordinates) {
+std::string BuildTablePath(const std::vector<Coordinate>& coordinates) {
   if (!HasMinimumPathCoordinates(coordinates)) {
     return {};
   }
@@ -35,7 +35,7 @@ std::string OsrmContract::BuildTablePath(const std::vector<Coordinate>& coordina
   return "/table/v1/driving/" + JoinCoordinates(coordinates) + "?annotations=distance,duration";
 }
 
-std::string OsrmContract::BuildRoutePath(const std::vector<Coordinate>& coordinates) {
+std::string BuildRoutePath(const std::vector<Coordinate>& coordinates) {
   if (!HasMinimumPathCoordinates(coordinates)) {
     return {};
   }

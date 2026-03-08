@@ -25,7 +25,7 @@ Json::Value ParseJsonOrDie(const std::string_view input) {
 } // namespace
 
 TEST(VroomContractTest, BuildSolvePayloadCreatesExpectedEntityCounts) {
-  const std::string payload = deliveryoptimizer::adapters::VroomContract::BuildSolvePayload(3U, 2U);
+  const std::string payload = deliveryoptimizer::adapters::BuildSolvePayload(3U, 2U);
   const Json::Value root = ParseJsonOrDie(payload);
 
   ASSERT_TRUE(root["jobs"].isArray());

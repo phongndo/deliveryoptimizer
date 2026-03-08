@@ -5,9 +5,9 @@
 
 namespace deliveryoptimizer::adapters {
 
-std::string RoutingFacade::Optimize(const std::size_t deliveries, const std::size_t vehicles) {
+std::string Optimize(const std::size_t deliveries, const std::size_t vehicles) {
   const domain::DeliveryProblem problem{deliveries, vehicles};
-  return application::OptimizeService::Optimize(problem);
+  return application::Optimize(problem);
 }
 
 } // namespace deliveryoptimizer::adapters

@@ -5,6 +5,5 @@
 
 TEST(VroomContractTest, ParseSolveSummaryReturnsNulloptWhenSummaryIsMissing) {
   constexpr std::string_view missing_summary = R"json({"status":"ok"})json";
-  EXPECT_FALSE(
-      deliveryoptimizer::adapters::VroomContract::ParseSolveSummary(missing_summary).has_value());
+  EXPECT_FALSE(deliveryoptimizer::adapters::ParseSolveSummary(missing_summary).has_value());
 }

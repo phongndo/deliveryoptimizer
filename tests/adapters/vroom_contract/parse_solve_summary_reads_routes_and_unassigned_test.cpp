@@ -14,7 +14,7 @@ TEST(VroomContractTest, ParseSolveSummaryReadsRoutesAndUnassigned) {
 }
 )json";
 
-  const auto summary = deliveryoptimizer::adapters::VroomContract::ParseSolveSummary(response);
+  const auto summary = deliveryoptimizer::adapters::ParseSolveSummary(response);
   ASSERT_TRUE(summary.has_value());
   EXPECT_EQ(summary->routes, 2U);
   EXPECT_EQ(summary->unassigned, 1U);

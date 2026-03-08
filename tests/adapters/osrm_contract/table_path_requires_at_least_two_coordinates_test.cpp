@@ -7,5 +7,5 @@ TEST(OsrmContractTest, TablePathRequiresAtLeastTwoCoordinates) {
   const std::vector<deliveryoptimizer::adapters::Coordinate> single_coordinate{
       {.lon = 7.4236, .lat = 43.7384}};
 
-  EXPECT_TRUE(deliveryoptimizer::adapters::OsrmContract::BuildTablePath(single_coordinate).empty());
+  EXPECT_TRUE(deliveryoptimizer::adapters::BuildTablePath(single_coordinate).empty());
 }

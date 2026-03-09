@@ -8,13 +8,13 @@ export type SessionExportResult =
   
 // filename save format
 function filenameTimestamp(date: Date) {
-  const yyyy = String(date.getFullYear())
-  const mm = String(date.getMonth() + 1).padStart(2, "0")
-  const dd = String(date.getDate()).padStart(2, "0")
+  const yyyy = String(date.getUTCFullYear())
+  const mm = String(date.getUTCMonth() + 1).padStart(2, "0")
+  const dd = String(date.getUTCDate()).padStart(2, "0")
 
-  const hh = String(date.getHours()).padStart(2, "0")
-  const min = String(date.getMinutes()).padStart(2, "0")
-  const ss = String(date.getSeconds()).padStart(2, "0")
+  const hh = String(date.getUTCHours()).padStart(2, "0")
+  const min = String(date.getUTCMinutes()).padStart(2, "0")
+  const ss = String(date.getUTCSeconds()).padStart(2, "0")
 
   return `date_${yyyy}-${mm}-${dd}_time_${hh}-${min}-${ss}`
 }

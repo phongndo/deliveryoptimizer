@@ -46,13 +46,12 @@ export function downloadSessionSave(state: OptimizeRequest): SessionExportResult
     const link = document.createElement("a")
     link.href = objectUrl
     link.download = filename
-    link.rel = "noopener"
 
     document.body.appendChild(link)
     link.click()
-
     link.remove()
-    URL.revokeObjectURL(objectUrl)
+
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 100)
 
     return { ok: true, filename }
   } catch (e) {

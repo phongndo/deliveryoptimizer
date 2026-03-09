@@ -1,6 +1,6 @@
 import { ZodError } from "zod"
 import type { OptimizeRequest } from "../types/optimize.types"
-import { parseSessionSaveFile } from "../validation/session.schema"
+import { migrateSessionSaveFile } from "../validation/session.schema"
 
 type LoadSessionCallbacks = {
   onSuccess: (state: OptimizeRequest) => void
@@ -56,7 +56,7 @@ export function loadSessionFromFile(
 
       let saveFile
       try {
-        saveFile = parseSessionSaveFile(parsed)
+        saveFile = migrateSessionSaveFile(parsed)
       } catch (e) {
         onError(formatValidationError(e) ?? "Invalid save file format.")
         return

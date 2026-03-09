@@ -1,14 +1,7 @@
-import { Location, Load } from "./common.types"
+import { z } from "zod"
+import { deliverySchema } from "../validation/delivery.schema"
 
-export type DeliveryInput = {
-  id: string
-  address?: string  // Not required for VROOM
-  location: Location
-  bufferTime?: number
-  demand: Load
-  timeWindows?: [number, number][]
-
-}
+export type DeliveryInput = z.infer<typeof deliverySchema>
 
 export type Delivery = {
   id: string

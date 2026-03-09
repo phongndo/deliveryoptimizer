@@ -1,14 +1,7 @@
-import { Location, Load } from "./common.types"
+import { z } from "zod"
+import { vehicleSchema } from "../validation/vehicle.schema"
 
-export type VehicleInput = {
-  id: string
-  vehicleType: string
-  startLocation: Location
-  endLocation?: Location
-  capacity: Load
-  departureTime?: number
-  returnTime?: number
-}
+export type VehicleInput = z.infer<typeof vehicleSchema>
 
 export type Vehicle = {
   id: string

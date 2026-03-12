@@ -2,6 +2,10 @@
 
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=tests/integration/http_server/http_server_helpers.sh
+source "${script_dir}/http_server_helpers.sh"
+
 if [[ $# -ne 3 ]]; then
   echo "usage: $0 <api-binary> <python3> <curl>" >&2
   exit 64
@@ -59,12 +63,11 @@ VROOM_BIN="/usr/bin/true" \
 "${api_binary}" >"${tmpdir}/server.log" 2>&1 &
 server_pid=$!
 
-for _ in $(seq 1 50); do
-  if "${curl_bin}" -fsS "http://127.0.0.1:${port}/health" >/dev/null 2>&1; then
-    break
-  fi
-  sleep 0.1
-done
+if ! wait_for_local_optimize_ready "${curl_bin}" "${port}" 50 0.1; then
+  echo "server failed to start on port ${port}" >&2
+  cat "${tmpdir}/server.log" >&2 || true
+  exit 1
+fi
 
 response_file="${tmpdir}/response.json"
 status_code="$("${curl_bin}" -sS -o "${response_file}" -w "%{http_code}" \

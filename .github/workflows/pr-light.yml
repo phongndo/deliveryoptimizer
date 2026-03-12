@@ -27,4 +27,6 @@ jobs:
           version: 1.0
       - run: cmake --version
       - run: cmake --preset dev
+      - run: cmake --build --preset dev
+      - run: ctest --preset dev --output-on-failure -LE 'e2e|docker'
       - run: docker compose -f deploy/compose/docker-compose.arm64.yml --env-file deploy/env/http-server.arm64.env config

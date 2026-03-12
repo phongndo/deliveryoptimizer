@@ -60,7 +60,6 @@ find_program(PYTHON3_PROGRAM python3 REQUIRED)
 find_program(DOCKER_PROGRAM docker)
 
 set(DELIVERYOPTIMIZER_LOCAL_API_LABELS "integration;api;local")
-set(DELIVERYOPTIMIZER_LOCAL_API_REGRESSION_LABELS "integration;api;local;regression")
 
 function(deliveryoptimizer_set_local_http_test_port test_name port)
   set_tests_properties(
@@ -122,13 +121,12 @@ deliveryoptimizer_set_local_http_test_port(
   22000
 )
 
-add_test(
-  NAME DeliveryOptimizerApiValidationTest.OptimizeRejectsMalformedDeliveries
-  COMMAND "${BASH_PROGRAM}"
-          "${CMAKE_CURRENT_SOURCE_DIR}/integration/http_server/optimize_rejects_malformed_deliveries_test.sh"
-          "$<TARGET_FILE:deliveryoptimizer_api>" "${CURL_PROGRAM}"
+deliveryoptimizer_add_local_http_test(
+  DeliveryOptimizerApiValidationTest.OptimizeRejectsMalformedDeliveries
+  optimize_rejects_malformed_deliveries_test.sh
+  30
+  "${DELIVERYOPTIMIZER_LOCAL_API_LABELS}"
 )
-set_tests_properties(DeliveryOptimizerApiValidationTest.OptimizeRejectsMalformedDeliveries PROPERTIES TIMEOUT 30)
 deliveryoptimizer_set_local_http_test_port(
   DeliveryOptimizerApiValidationTest.OptimizeRejectsMalformedDeliveries
   23000
@@ -283,6 +281,8 @@ if(DOCKER_PROGRAM)
       "${CMAKE_SOURCE_DIR}/deploy/compose/docker-compose.arm64.yml"
       "${DOCKER_PROGRAM}" "${CURL_PROGRAM}"
   )
+  # Keep this out of the default preset because it builds/pulls the full routing stack and is
+  # intended as an explicit smoke check rather than a fast per-PR validation step.
   set_tests_properties(
     DeliveryOptimizerRoutingSmokeTest.OsrmAndVroom
     PROPERTIES

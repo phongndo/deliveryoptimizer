@@ -105,13 +105,11 @@ export default function MapComponent({ routes }: MapComponentProps) {
   };
 
   return (
-    <div 
-      ="w-full h-full rounded-lg">
+    <div className="w-full h-full rounded-lg">
       <LoadScriptNext // small component that loads google maps script, then renders map components inside it
         googleMapsApiKey={apiKey} // script needs api key
         mapIds={mapId ? [mapId] : undefined} // advanced markers needs map id
-        loadingElement={<div 
-                          ="min-h-[70vh] bg-zinc-100 animate-pulse rounded-lg" />}
+        loadingElement={<div className="min-h-[70vh] bg-zinc-100 animate-pulse rounded-lg" />}
       >
         <GoogleMap // component that draws the map
           mapContainerStyle={{ width: "100%", height: "100%" }}

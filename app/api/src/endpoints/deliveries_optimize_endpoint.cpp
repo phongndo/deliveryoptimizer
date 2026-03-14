@@ -1,6 +1,7 @@
 #include "deliveryoptimizer/api/endpoints/deliveries_optimize_endpoint.hpp"
 
-#include <cstdlib>
+#include "env_utils.hpp"
+
 #include <drogon/drogon.h>
 #include <filesystem>
 #include <fstream>
@@ -504,16 +505,6 @@ void ApplyExternalIdsToUnassigned(Json::Value& unassigned,
   }
 }
 
-[[nodiscard]] std::string ResolveEnvOrDefault(const char* key,
-                                              const std::string_view default_value) {
-  const char* raw_value = std::getenv(key);
-  if (raw_value == nullptr || *raw_value == '\0') {
-    return std::string{default_value};
-  }
-
-  return std::string{raw_value};
-}
-
 [[nodiscard]] std::string ShellEscape(const std::string& value) {
   std::string escaped;
   escaped.reserve(value.size() + 2U);
@@ -572,12 +563,16 @@ void ApplyExternalIdsToUnassigned(Json::Value& unassigned,
     }
   }
 
-  const std::string vroom_bin = ResolveEnvOrDefault("VROOM_BIN", kDefaultVroomBin);
-  const std::string vroom_router = ResolveEnvOrDefault("VROOM_ROUTER", kDefaultVroomRouter);
-  const std::string vroom_host = ResolveEnvOrDefault("VROOM_HOST", kDefaultVroomHost);
-  const std::string vroom_port = ResolveEnvOrDefault("VROOM_PORT", kDefaultVroomPort);
-  const std::string vroom_timeout =
-      ResolveEnvOrDefault("VROOM_TIMEOUT_SECONDS", kDefaultVroomTimeoutSeconds);
+  const std::string vroom_bin =
+      deliveryoptimizer::api::ResolveEnvOrDefault("VROOM_BIN", kDefaultVroomBin);
+  const std::string vroom_router =
+      deliveryoptimizer::api::ResolveEnvOrDefault("VROOM_ROUTER", kDefaultVroomRouter);
+  const std::string vroom_host =
+      deliveryoptimizer::api::ResolveEnvOrDefault("VROOM_HOST", kDefaultVroomHost);
+  const std::string vroom_port =
+      deliveryoptimizer::api::ResolveEnvOrDefault("VROOM_PORT", kDefaultVroomPort);
+  const std::string vroom_timeout = deliveryoptimizer::api::ResolveEnvOrDefault(
+      "VROOM_TIMEOUT_SECONDS", kDefaultVroomTimeoutSeconds);
 
   const std::string command = ShellEscape(vroom_bin) + " --router " + ShellEscape(vroom_router) +
                               " --host " + ShellEscape(vroom_host) + " --port " +

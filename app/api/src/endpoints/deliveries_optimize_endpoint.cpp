@@ -33,6 +33,8 @@ constexpr double kMinLongitude = -180.0;
 constexpr double kMaxLongitude = 180.0;
 constexpr double kMinLatitude = -90.0;
 constexpr double kMaxLatitude = 90.0;
+constexpr std::string_view kCoordinateValidationMessage =
+    "must be an array [lon, lat] with longitude in [-180, 180] and latitude in [-90, 90].";
 
 struct Coordinate {
   double lon;
@@ -290,8 +292,7 @@ ParseVehicle(const Json::Value& vehicle, const std::string_view base_field, Json
   if (vehicle.isMember("start")) {
     start_coordinate = ParseCoordinate(start);
     if (!start_coordinate.has_value()) {
-      AddValidationIssue(issues, std::string{base_field} + ".start",
-                         "must be an array [lon, lat] with numeric values.");
+      AddValidationIssue(issues, std::string{base_field} + ".start", kCoordinateValidationMessage);
       valid_vehicle = false;
     }
   }
@@ -299,8 +300,7 @@ ParseVehicle(const Json::Value& vehicle, const std::string_view base_field, Json
   if (vehicle.isMember("end")) {
     end_coordinate = ParseCoordinate(end);
     if (!end_coordinate.has_value()) {
-      AddValidationIssue(issues, std::string{base_field} + ".end",
-                         "must be an array [lon, lat] with numeric values.");
+      AddValidationIssue(issues, std::string{base_field} + ".end", kCoordinateValidationMessage);
       valid_vehicle = false;
     }
   }
@@ -349,8 +349,7 @@ ParseJob(const Json::Value& job, const std::string_view base_field, Json::Value&
 
   const auto parsed_location = ParseCoordinate(location);
   if (!parsed_location.has_value()) {
-    AddValidationIssue(issues, std::string{base_field} + ".location",
-                       "must be an array [lon, lat] with numeric values.");
+    AddValidationIssue(issues, std::string{base_field} + ".location", kCoordinateValidationMessage);
     valid_job = false;
   }
 
@@ -404,8 +403,7 @@ void ParseDepot(const Json::Value& root, OptimizeRequestInput& parsed_input, Jso
 
   const auto depot_coordinate = ParseCoordinate(depot["location"]);
   if (!depot_coordinate.has_value()) {
-    AddValidationIssue(issues, "depot.location",
-                       "must be an array [lon, lat] with numeric values.");
+    AddValidationIssue(issues, "depot.location", kCoordinateValidationMessage);
     return;
   }
 

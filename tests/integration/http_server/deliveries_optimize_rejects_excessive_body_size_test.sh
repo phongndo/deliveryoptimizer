@@ -26,7 +26,10 @@ cleanup() {
 }
 trap cleanup EXIT
 
-port="$("${python3_bin}" - <<'PY'
+if [[ -n "${DELIVERYOPTIMIZER_TEST_PORT:-}" ]]; then
+  port="${DELIVERYOPTIMIZER_TEST_PORT}"
+else
+  port="$("${python3_bin}" - <<'PY'
 import socket
 
 sock = socket.socket()
@@ -35,6 +38,8 @@ print(sock.getsockname()[1])
 sock.close()
 PY
 )"
+fi
+http_server_require_valid_port "${port}" "port" || exit 1
 
 payload_file="${tmpdir}/oversized.json"
 "${python3_bin}" - "${payload_file}" <<'PY'

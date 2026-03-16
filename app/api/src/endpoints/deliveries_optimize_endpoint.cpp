@@ -39,6 +39,7 @@ constexpr std::string_view kDefaultVroomRouter = "osrm";
 constexpr std::string_view kDefaultVroomHost = "osrm";
 constexpr std::string_view kDefaultVroomPort = "5001";
 constexpr std::string_view kDefaultVroomTimeoutSeconds = "30";
+constexpr int kDefaultVroomTimeoutSecondsInt = 30;
 constexpr std::string_view kVroomStdoutPath = "/dev/stdout";
 constexpr int kDefaultJobServiceSeconds = 300;
 constexpr double kMinLongitude = -180.0;
@@ -807,7 +808,7 @@ void ApplyExternalIdsToUnassigned(Json::Value& unassigned,
   const std::string vroom_timeout = deliveryoptimizer::api::ResolveEnvOrDefault(
       "VROOM_TIMEOUT_SECONDS", kDefaultVroomTimeoutSeconds);
   const int timeout_seconds =
-      ParseTimeoutSeconds(vroom_timeout, std::stoi(std::string{kDefaultVroomTimeoutSeconds}));
+      ParseTimeoutSeconds(vroom_timeout, kDefaultVroomTimeoutSecondsInt);
 
   return VroomRuntimeConfig{
       .vroom_bin = deliveryoptimizer::api::ResolveEnvOrDefault("VROOM_BIN", kDefaultVroomBin),

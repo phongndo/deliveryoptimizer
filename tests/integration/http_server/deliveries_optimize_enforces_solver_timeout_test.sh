@@ -5,7 +5,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=tests/integration/http_server/http_server_helpers.sh
 source "${script_dir}/http_server_helpers.sh"
 
-http_server_init 38000 "$@"
+http_server_init 37000 "$@"
 response_file="${work_dir}/response.json"
 payload_file="${work_dir}/payload.json"
 stub_bin="${work_dir}/vroom-stub.sh"

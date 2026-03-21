@@ -1,92 +1,92 @@
 #include "deliveryoptimizer/api/endpoints/health_endpoint.hpp"
 
 #include "env_utils.hpp"
+#include "job_api_utils.hpp"
 
 #include <chrono>
 #include <drogon/drogon.h>
-#include <filesystem>
 #include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
-#include <unistd.h>
 #include <utility>
 
 namespace {
 
-constexpr std::string_view kDefaultVroomBin = "/usr/local/bin/vroom";
 constexpr std::string_view kDefaultOsrmUrl = "http://127.0.0.1:5001";
 constexpr std::string_view kOsrmProbePath =
     "/nearest/v1/driving/-122.4194,37.7749?number=1&generate_hints=false";
 constexpr double kOsrmProbeTimeoutSeconds = 4.0;
 constexpr std::chrono::seconds kOsrmProbeCacheTtl{2};
 
-struct OsrmProbeResult {
+struct DependencyCheck {
   bool ready;
   std::string detail;
 };
 
-[[nodiscard]] bool IsVroomBinaryReady() {
-  const std::string vroom_bin =
-      deliveryoptimizer::api::ResolveEnvOrDefault("VROOM_BIN", kDefaultVroomBin);
-  std::error_code error;
-  const std::filesystem::file_status status = std::filesystem::status(vroom_bin, error);
-  if (error || !std::filesystem::is_regular_file(status)) {
-    return false;
+[[nodiscard]] DependencyCheck CheckDatabase() {
+  const auto job_store = deliveryoptimizer::api::GetApiJobStore();
+  if (!job_store) {
+    return DependencyCheck{.ready = false, .detail = "unavailable"};
   }
 
-  return ::access(vroom_bin.c_str(), X_OK) == 0;
+  const bool ready = job_store->Ping();
+  return DependencyCheck{
+      .ready = ready,
+      .detail = ready ? "ok" : "down",
+  };
 }
 
-[[nodiscard]] OsrmProbeResult EvaluateOsrmProbe(const drogon::ReqResult result,
+[[nodiscard]] DependencyCheck EvaluateOsrmProbe(const drogon::ReqResult result,
                                                 const drogon::HttpResponsePtr& response) {
   if (result != drogon::ReqResult::Ok) {
-    return OsrmProbeResult{.ready = false, .detail = drogon::to_string(result)};
+    return DependencyCheck{.ready = false, .detail = drogon::to_string(result)};
   }
 
   if (response == nullptr) {
-    return OsrmProbeResult{.ready = false, .detail = "empty response"};
+    return DependencyCheck{.ready = false, .detail = "empty response"};
   }
 
   if (response->statusCode() != drogon::k200OK) {
-    return OsrmProbeResult{.ready = false,
-                           .detail =
-                               "HTTP " + std::to_string(static_cast<int>(response->statusCode()))};
+    return DependencyCheck{
+        .ready = false,
+        .detail = "HTTP " + std::to_string(static_cast<int>(response->statusCode())),
+    };
   }
 
   const auto& parsed_json = response->getJsonObject();
   if (!parsed_json) {
     const std::string& parse_error = response->getJsonError();
-    if (parse_error.empty()) {
-      return OsrmProbeResult{.ready = false, .detail = "invalid JSON"};
-    }
-    return OsrmProbeResult{.ready = false, .detail = parse_error};
+    return DependencyCheck{
+        .ready = false,
+        .detail = parse_error.empty() ? "invalid JSON" : parse_error,
+    };
   }
 
   const Json::Value& code = (*parsed_json)["code"];
   if (!code.isString()) {
-    return OsrmProbeResult{.ready = false, .detail = "missing code field"};
+    return DependencyCheck{.ready = false, .detail = "missing code field"};
   }
 
   const std::string code_text = code.asString();
-  if (code_text != "Ok") {
-    return OsrmProbeResult{.ready = false, .detail = code_text};
-  }
-
-  return OsrmProbeResult{.ready = true, .detail = code_text};
+  return DependencyCheck{
+      .ready = (code_text == "Ok"),
+      .detail = code_text,
+  };
 }
 
-[[nodiscard]] drogon::HttpResponsePtr BuildHealthResponse(const bool vroom_ready,
-                                                          const OsrmProbeResult& osrm_probe) {
+[[nodiscard]] drogon::HttpResponsePtr BuildHealthResponse(const DependencyCheck& database_check,
+                                                          const DependencyCheck& osrm_check) {
   Json::Value body{Json::objectValue};
-  const bool overall_ready = vroom_ready && osrm_probe.ready;
+  const bool overall_ready = database_check.ready && osrm_check.ready;
   body["status"] = overall_ready ? "ok" : "degraded";
 
   Json::Value checks{Json::objectValue};
-  checks["vroom_binary"] = vroom_ready ? "ok" : "missing";
-  checks["osrm"] = osrm_probe.ready ? "ok" : "down";
-  checks["osrm_detail"] = osrm_probe.detail;
-  body["checks"] = checks;
+  checks["database"] = database_check.ready ? "ok" : "down";
+  checks["database_detail"] = database_check.detail;
+  checks["osrm"] = osrm_check.ready ? "ok" : "down";
+  checks["osrm_detail"] = osrm_check.detail;
+  body["checks"] = std::move(checks);
 
   auto response = drogon::HttpResponse::newHttpJsonResponse(body);
   response->setStatusCode(overall_ready ? drogon::k200OK : drogon::k503ServiceUnavailable);
@@ -101,7 +101,7 @@ struct OsrmProbeResult {
 
 struct OsrmProbeCache {
   std::mutex mutex;
-  std::optional<OsrmProbeResult> cached_result;
+  std::optional<DependencyCheck> cached_result;
   std::chrono::steady_clock::time_point cached_at{};
 };
 
@@ -110,7 +110,7 @@ OsrmProbeCache& GetOsrmProbeCache() {
   return cache;
 }
 
-std::optional<OsrmProbeResult> GetCachedOsrmProbe() {
+std::optional<DependencyCheck> GetCachedOsrmProbe() {
   auto& cache = GetOsrmProbeCache();
 
   std::lock_guard<std::mutex> lock(cache.mutex);
@@ -118,15 +118,14 @@ std::optional<OsrmProbeResult> GetCachedOsrmProbe() {
     return std::nullopt;
   }
 
-  const auto now = std::chrono::steady_clock::now();
-  if (now - cache.cached_at > kOsrmProbeCacheTtl) {
+  if (std::chrono::steady_clock::now() - cache.cached_at > kOsrmProbeCacheTtl) {
     return std::nullopt;
   }
 
   return cache.cached_result;
 }
 
-void CacheOsrmProbe(const OsrmProbeResult& result) {
+void CacheOsrmProbe(const DependencyCheck& result) {
   auto& cache = GetOsrmProbeCache();
 
   std::lock_guard<std::mutex> lock(cache.mutex);
@@ -142,9 +141,9 @@ void RegisterHealthEndpoint(drogon::HttpAppFramework& app) {
   app.registerHandler(
       "/health", [](const drogon::HttpRequestPtr& /*request*/,
                     std::function<void(const drogon::HttpResponsePtr&)>&& callback) {
-        const bool vroom_ready = IsVroomBinaryReady();
+        const DependencyCheck database_check = CheckDatabase();
         if (const auto cached_probe = GetCachedOsrmProbe()) {
-          std::move(callback)(BuildHealthResponse(vroom_ready, *cached_probe));
+          std::move(callback)(BuildHealthResponse(database_check, *cached_probe));
           return;
         }
 
@@ -155,12 +154,13 @@ void RegisterHealthEndpoint(drogon::HttpAppFramework& app) {
 
         osrm_client->sendRequest(
             osrm_probe_request,
-            [osrm_client = std::move(osrm_client), vroom_ready, callback = std::move(callback)](
-                const drogon::ReqResult result, const drogon::HttpResponsePtr& response) mutable {
+            [database_check, osrm_client = std::move(osrm_client),
+             callback = std::move(callback)](const drogon::ReqResult result,
+                                             const drogon::HttpResponsePtr& response) mutable {
               (void)osrm_client;
-              const OsrmProbeResult osrm_probe = EvaluateOsrmProbe(result, response);
+              const DependencyCheck osrm_probe = EvaluateOsrmProbe(result, response);
               CacheOsrmProbe(osrm_probe);
-              std::move(callback)(BuildHealthResponse(vroom_ready, osrm_probe));
+              std::move(callback)(BuildHealthResponse(database_check, osrm_probe));
             },
             kOsrmProbeTimeoutSeconds);
       });

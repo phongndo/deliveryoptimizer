@@ -9,7 +9,7 @@ http_server_init 34000 "$@"
 response_file="${work_dir}/response.json"
 
 http_server_start OSRM_URL="http://127.0.0.1:9"
-http_server_wait_until_responding "/health" "${response_file}"
+http_server_wait_until_ready
 
 http_code="$("${curl_bin}" -sS -o "${response_file}" -w "%{http_code}" \
   "$(http_server_url /api/v1/osrm/foobar/v1/driving/-122.4194,37.7749?number=1&generate_hints=false)")"

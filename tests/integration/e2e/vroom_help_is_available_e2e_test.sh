@@ -11,8 +11,8 @@ vroom_help_file="${work_dir}/vroom-help.txt"
 e2e_stack_up
 e2e_wait_for_osrm_nearest_ok "${osrm_response_file}"
 
-if ! e2e_compose exec -T http-server vroom --help >"${vroom_help_file}" 2>&1; then
-  echo "vroom --help failed in http-server container" >&2
+if ! e2e_compose exec -T worker vroom --help >"${vroom_help_file}" 2>&1; then
+  echo "vroom --help failed in worker container" >&2
   cat "${vroom_help_file}" >&2 || true
   exit 1
 fi

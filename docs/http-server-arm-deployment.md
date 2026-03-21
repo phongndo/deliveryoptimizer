@@ -1,12 +1,12 @@
 # ARM Deployment (HTTP Server + Routing)
 
-This document describes the deployment assets for the C++ Drogon HTTP server (`deliveryoptimizer-api`), OSRM, and VROOM on ARM Linux (`linux/arm64`).
+This document describes the deployment assets for the C++ Drogon API (`deliveryoptimizer-api`), async optimization worker (`deliveryoptimizer-worker`), PostgreSQL queue store, OSRM, and VROOM on ARM Linux (`linux/arm64`).
 
 ## Files
 
-- `deploy/services/http-server.Dockerfile`: ARM-aware container build for the API and VROOM binary.
+- `deploy/services/http-server.Dockerfile`: ARM-aware multi-target build for the API runtime, worker runtime, and migrator.
 - `deploy/services/osrm.Dockerfile`: ARM-aware container build for OSRM.
-- `deploy/compose/docker-compose.arm64.yml`: Compose service definition (API + OSRM).
+- `deploy/compose/docker-compose.arm64.yml`: Compose service definition (API + worker + migrate + PostgreSQL + OSRM).
 - `deploy/env/http-server.arm64.env`: Default ARM runtime/build settings, including California map source.
 
 Port configuration defaults to `8080` for both the host mapping and the app listen port.
@@ -42,7 +42,7 @@ VROOM binary check:
 docker compose \
   --env-file deploy/env/http-server.arm64.env \
   -f deploy/compose/docker-compose.arm64.yml \
-  exec http-server vroom --help
+  exec worker vroom --help
 ```
 
 ## Build ARM image from non-ARM host
@@ -53,6 +53,7 @@ Use `buildx` with emulation:
 docker buildx build \
   --platform linux/arm64 \
   -f deploy/services/http-server.Dockerfile \
+  --target api-runtime \
   -t deliveryoptimizer-http:arm64 \
   .
 ```

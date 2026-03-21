@@ -3,6 +3,7 @@
 #include "deliveryoptimizer/api/endpoints/deliveries_optimize_endpoint.hpp"
 #include "deliveryoptimizer/api/endpoints/health_endpoint.hpp"
 #include "deliveryoptimizer/api/endpoints/optimize_endpoint.hpp"
+#include "deliveryoptimizer/api/endpoints/optimize_job_status_endpoint.hpp"
 #include "deliveryoptimizer/api/endpoints/osrm_proxy_endpoint.hpp"
 #include "deliveryoptimizer/api/server_options.hpp"
 
@@ -22,6 +23,7 @@ int RunApiServer() {
   RegisterHealthEndpoint(app);
   RegisterOptimizeEndpoint(app);
   RegisterDeliveriesOptimizeEndpoint(app);
+  RegisterOptimizeJobStatusEndpoint(app);
   RegisterOsrmProxyEndpoint(app);
 
   const auto options = LoadServerOptionsFromEnv();

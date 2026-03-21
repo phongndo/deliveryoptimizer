@@ -83,7 +83,7 @@ if [[ "${stub_ready}" != "true" ]]; then
 fi
 
 http_server_start OSRM_URL="http://127.0.0.1:${stub_port}"
-http_server_wait_until_responding "/health" "${response_file}"
+http_server_wait_until_ready
 
 upstream_path="/nearest/v1/driving/-122.4194,37.7749?number=1&generate_hints=false"
 encoded_upstream_path="/nearest/v1/driving/-122.4194%2C37.7749?number=1&generate_hints=false"

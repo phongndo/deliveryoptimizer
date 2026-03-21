@@ -12,7 +12,14 @@ class App(ConanFile):
     generators = "CMakeToolchain", "CMakeDeps"
 
     def requirements(self):
-        self.requires("drogon/1.9.12")
+        self.requires(
+            "drogon/1.9.12",
+            options={
+                "with_postgres": True,
+                "with_postgres_batch": True,
+            },
+        )
+        self.requires("libpq/15.4", override=True)
         self.test_requires("gtest/1.14.0")
 
     def layout(self):

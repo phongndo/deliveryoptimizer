@@ -49,7 +49,7 @@ api_port="$(resolve_env_value DELIVERYOPTIMIZER_HOST_PORT 8080)"
 osrm_port="$(resolve_env_value DELIVERYOPTIMIZER_OSRM_HOST_PORT 5001)"
 
 "${docker_bin}" compose -p "${project_name}" --env-file "${env_file}" -f "${compose_file}" \
-  up -d --build osrm http-server
+  up -d --build http-server worker
 
 osrm_ready=false
 for _ in $(seq 1 180); do
@@ -71,8 +71,8 @@ if [[ "${osrm_ready}" != "true" ]]; then
 fi
 
 if ! "${docker_bin}" compose -p "${project_name}" --env-file "${env_file}" -f "${compose_file}" \
-  exec -T http-server vroom --help >"${vroom_help_file}" 2>&1; then
-  echo "vroom --help failed in http-server container" >&2
+  exec -T worker vroom --help >"${vroom_help_file}" 2>&1; then
+  echo "vroom --help failed in worker container" >&2
   cat "${vroom_help_file}" >&2 || true
   exit 1
 fi

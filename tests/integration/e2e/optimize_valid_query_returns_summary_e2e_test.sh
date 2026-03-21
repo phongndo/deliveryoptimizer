@@ -11,7 +11,8 @@ optimize_file="${work_dir}/optimize.json"
 e2e_stack_up
 e2e_wait_for_api_health "${health_file}"
 
-"${curl_bin}" -fsS "http://127.0.0.1:${api_port}/optimize?deliveries=4&vehicles=2" >"${optimize_file}"
+"${curl_bin}" -fsS -X POST "http://127.0.0.1:${api_port}/optimize?deliveries=4&vehicles=2" \
+  >"${optimize_file}"
 
 if ! grep -Eq '"summary"[[:space:]]*:[[:space:]]*"optimized-plan: deliveries=4, vehicles=2"' \
   "${optimize_file}"; then

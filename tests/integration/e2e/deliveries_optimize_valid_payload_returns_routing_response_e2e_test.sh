@@ -8,7 +8,8 @@ e2e_init "$@"
 osrm_ready_file="${work_dir}/osrm-nearest-ready.json"
 health_file="${work_dir}/health.json"
 payload_file="${work_dir}/optimize-payload.json"
-response_file="${work_dir}/optimize-response.json"
+submit_response_file="${work_dir}/optimize-submit-response.json"
+status_response_file="${work_dir}/optimize-status-response.json"
 
 e2e_stack_up
 e2e_wait_for_osrm_nearest_ok "${osrm_ready_file}"
@@ -27,22 +28,40 @@ cat >"${payload_file}" <<'JSON'
 }
 JSON
 
-http_code="$("${curl_bin}" -sS -o "${response_file}" -w "%{http_code}" \
+http_code="$("${curl_bin}" -sS -o "${submit_response_file}" -w "%{http_code}" \
   -X POST \
   -H "Content-Type: application/json" \
+  -H "Idempotency-Key: e2e-valid-payload" \
   --data-binary "@${payload_file}" \
   "http://127.0.0.1:${api_port}/api/v1/deliveries/optimize")"
 
-if [[ "${http_code}" != "200" ]]; then
-  echo "expected HTTP 200 from deliveries optimize, got ${http_code}" >&2
-  cat "${response_file}" >&2 || true
+if [[ "${http_code}" != "202" ]]; then
+  echo "expected HTTP 202 from deliveries optimize submission, got ${http_code}" >&2
+  cat "${submit_response_file}" >&2 || true
   exit 1
 fi
 
-for key in status summary routes unassigned; do
-  if ! grep -Eq '"'"${key}"'"[[:space:]]*:' "${response_file}"; then
-    echo "optimize response missing key ${key}" >&2
-    cat "${response_file}" >&2 || true
+job_id="$(e2e_extract_json_string job_id "${submit_response_file}")"
+if [[ -z "${job_id}" ]]; then
+  echo "submit response did not include a job_id" >&2
+  cat "${submit_response_file}" >&2 || true
+  exit 1
+fi
+
+e2e_wait_for_job_success "${job_id}" "${status_response_file}"
+
+for key in job_id status result; do
+  if ! grep -Eq '"'"${key}"'"[[:space:]]*:' "${status_response_file}"; then
+    echo "job status response missing key ${key}" >&2
+    cat "${status_response_file}" >&2 || true
+    exit 1
+  fi
+done
+
+for key in summary routes unassigned; do
+  if ! grep -Eq '"'"${key}"'"[[:space:]]*:' "${status_response_file}"; then
+    echo "optimization result missing key ${key}" >&2
+    cat "${status_response_file}" >&2 || true
     exit 1
   fi
 done

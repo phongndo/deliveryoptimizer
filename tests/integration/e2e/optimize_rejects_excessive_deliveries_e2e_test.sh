@@ -11,7 +11,7 @@ error_file="${work_dir}/optimize-excessive.json"
 e2e_stack_up
 e2e_wait_for_api_health "${health_file}"
 
-http_code="$("${curl_bin}" -sS -o "${error_file}" -w "%{http_code}" \
+http_code="$("${curl_bin}" -sS -X POST -o "${error_file}" -w "%{http_code}" \
   "http://127.0.0.1:${api_port}/optimize?deliveries=2147483647&vehicles=1")"
 
 if [[ "${http_code}" != "400" ]]; then

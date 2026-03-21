@@ -1,6 +1,6 @@
 # Delivery Optimizer
 
-This branch introduces the C++ API runtime modules plus ARM routing stack assets (OSRM + VROOM) and an OSRM proxy endpoint.
+This branch provides the C++ API runtime, a PostgreSQL-backed async optimization queue, worker runtime, and ARM routing stack assets (OSRM + VROOM).
 
 ## Contributor Docs
 
@@ -20,6 +20,7 @@ This branch introduces the C++ API runtime modules plus ARM routing stack assets
 - `GET /health`
 - `GET /optimize?deliveries=<n>&vehicles=<n>`
 - `POST /api/v1/deliveries/optimize`
+- `GET /api/v1/deliveries/optimize/<job_id>`
 - `GET /api/v1/osrm/*` (allowlisted OSRM services)
 
 Example:
@@ -27,6 +28,7 @@ Example:
 ```bash
 curl -X POST http://127.0.0.1:8080/api/v1/deliveries/optimize \
   -H 'Content-Type: application/json' \
+  -H 'Idempotency-Key: example-request-1' \
   --data-binary '{
     "depot": { "location": [-122.4194, 37.7749] },
     "vehicles": [{ "id": "van-1", "capacity": 8 }],
@@ -34,7 +36,13 @@ curl -X POST http://127.0.0.1:8080/api/v1/deliveries/optimize \
   }'
 ```
 
-If `jobs[].demand` is omitted, the API defaults it to `1`. If `jobs[].service` is omitted, the API defaults it to `300` seconds.
+Successful submissions return `202 Accepted` with a `job_id`, `poll_url`, and `Location` header. Poll the job resource until `status` becomes `succeeded` or `failed`.
+
+```bash
+curl -f http://127.0.0.1:8080/api/v1/deliveries/optimize/<job_id>
+```
+
+If `jobs[].demand` is omitted, the API defaults it to `1`. If `jobs[].service` is omitted, the API defaults it to `300` seconds. Reusing the same `Idempotency-Key` with the same canonical payload returns the existing job; reusing it with a different payload returns `409 Conflict`.
 
 ## Build (C++)
 
@@ -51,7 +59,9 @@ ctest --test-dir build/build/Release --output-on-failure
 Run:
 
 ```bash
+./build/build/Release/app/api/deliveryoptimizer-migrate
 ./build/build/Release/app/api/deliveryoptimizer-api
+./build/build/Release/app/api/deliveryoptimizer-worker
 ```
 
 ## Routing Stack (Docker)
@@ -68,6 +78,10 @@ Quick checks:
 ```bash
 curl -f http://127.0.0.1:8080/health
 curl -f "http://127.0.0.1:5001/nearest/v1/driving/-122.4194,37.7749?number=1&generate_hints=false"
+docker compose \
+  --env-file deploy/env/http-server.arm64.env \
+  -f deploy/compose/docker-compose.arm64.yml \
+  exec worker vroom --help
 ```
 
 ## UI

@@ -1,6 +1,47 @@
 name: deliveryoptimizer
 
+x-http-build: &http-build
+  context: ../..
+  dockerfile: deploy/services/http-server.Dockerfile
+  args:
+    UBUNTU_VERSION: ${UBUNTU_VERSION:-24.04}
+    CONAN_VERSION: ${CONAN_VERSION:-2.9.2}
+    VROOM_REF: ${VROOM_REF:-v1.14.0}
+    VROOM_COMMIT: ${VROOM_COMMIT:-1fd711bc8c20326dd8e9538e2c7e4cb1ebd67bdb}
+    VROOM_BUILD_JOBS: ${VROOM_BUILD_JOBS:-2}
+
+x-runtime-env: &runtime-env
+  DELIVERYOPTIMIZER_DATABASE_URL: ${DELIVERYOPTIMIZER_DATABASE_URL:-postgresql://deliveryoptimizer:deliveryoptimizer@postgres:5432/deliveryoptimizer}
+  DELIVERYOPTIMIZER_API_DB_CONNECTIONS: ${DELIVERYOPTIMIZER_API_DB_CONNECTIONS:-4}
+  DELIVERYOPTIMIZER_WORKER_DB_CONNECTIONS: ${DELIVERYOPTIMIZER_WORKER_DB_CONNECTIONS:-4}
+  DELIVERYOPTIMIZER_WORKER_CONCURRENCY: ${DELIVERYOPTIMIZER_WORKER_CONCURRENCY:-2}
+  DELIVERYOPTIMIZER_JOB_MAX_ATTEMPTS: ${DELIVERYOPTIMIZER_JOB_MAX_ATTEMPTS:-3}
+  DELIVERYOPTIMIZER_JOB_RETENTION_SECONDS: ${DELIVERYOPTIMIZER_JOB_RETENTION_SECONDS:-86400}
+  DELIVERYOPTIMIZER_JOB_QUEUE_CAP: ${DELIVERYOPTIMIZER_JOB_QUEUE_CAP:-100}
+  DELIVERYOPTIMIZER_WORKER_POLL_INTERVAL_MS: ${DELIVERYOPTIMIZER_WORKER_POLL_INTERVAL_MS:-500}
+
 services:
+  postgres:
+    platform: ${DELIVERYOPTIMIZER_PLATFORM:-linux/arm64}
+    image: ${DELIVERYOPTIMIZER_POSTGRES_IMAGE:-postgres:16-alpine}
+    environment:
+      POSTGRES_DB: ${DELIVERYOPTIMIZER_POSTGRES_DB:-deliveryoptimizer}
+      POSTGRES_USER: ${DELIVERYOPTIMIZER_POSTGRES_USER:-deliveryoptimizer}
+      POSTGRES_PASSWORD: ${DELIVERYOPTIMIZER_POSTGRES_PASSWORD:-deliveryoptimizer}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${DELIVERYOPTIMIZER_POSTGRES_USER:-deliveryoptimizer} -d ${DELIVERYOPTIMIZER_POSTGRES_DB:-deliveryoptimizer}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    restart: unless-stopped
+
   osrm:
     platform: ${DELIVERYOPTIMIZER_PLATFORM:-linux/arm64}
     image: ${DELIVERYOPTIMIZER_OSRM_IMAGE:-deliveryoptimizer-osrm:arm64}
@@ -33,27 +74,61 @@ services:
       start_period: 120s
     restart: unless-stopped
 
-  http-server:
+  migrate:
     platform: ${DELIVERYOPTIMIZER_PLATFORM:-linux/arm64}
-    image: ${DELIVERYOPTIMIZER_IMAGE:-deliveryoptimizer-http:arm64}
+    image: ${DELIVERYOPTIMIZER_WORKER_IMAGE:-deliveryoptimizer-worker:arm64}
     build:
-      context: ../..
-      dockerfile: deploy/services/http-server.Dockerfile
-      args:
-        UBUNTU_VERSION: ${UBUNTU_VERSION:-24.04}
-        CONAN_VERSION: ${CONAN_VERSION:-2.9.2}
-        VROOM_REF: ${VROOM_REF:-v1.14.0}
-        VROOM_COMMIT: ${VROOM_COMMIT:-1fd711bc8c20326dd8e9538e2c7e4cb1ebd67bdb}
-        VROOM_BUILD_JOBS: ${VROOM_BUILD_JOBS:-2}
+      <<: *http-build
+      target: worker-runtime
     environment:
-      OSRM_URL: http://osrm:${OSRM_INTERNAL_PORT:-5001}
+      <<: *runtime-env
+      DELIVERYOPTIMIZER_MIGRATIONS_DIR: /opt/deliveryoptimizer/db/migrations
+    depends_on:
+      postgres:
+        condition: service_healthy
+    entrypoint: ["/usr/local/bin/deliveryoptimizer-migrate"]
+    restart: "no"
+
+  worker:
+    platform: ${DELIVERYOPTIMIZER_PLATFORM:-linux/arm64}
+    image: ${DELIVERYOPTIMIZER_WORKER_IMAGE:-deliveryoptimizer-worker:arm64}
+    build:
+      <<: *http-build
+      target: worker-runtime
+    environment:
+      <<: *runtime-env
+      DELIVERYOPTIMIZER_MIGRATIONS_DIR: /opt/deliveryoptimizer/db/migrations
       VROOM_BIN: /usr/local/bin/vroom
       VROOM_ROUTER: osrm
       VROOM_HOST: osrm
       VROOM_PORT: ${OSRM_INTERNAL_PORT:-5001}
       VROOM_TIMEOUT_SECONDS: ${VROOM_TIMEOUT_SECONDS:-30}
     depends_on:
+      postgres:
+        condition: service_healthy
       osrm:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+    restart: unless-stopped
+
+  http-server:
+    platform: ${DELIVERYOPTIMIZER_PLATFORM:-linux/arm64}
+    image: ${DELIVERYOPTIMIZER_IMAGE:-deliveryoptimizer-http:arm64}
+    build:
+      <<: *http-build
+      target: api-runtime
+    environment:
+      <<: *runtime-env
+      OSRM_URL: http://osrm:${OSRM_INTERNAL_PORT:-5001}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      osrm:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
+      worker:
         condition: service_healthy
     ports:
       - "${DELIVERYOPTIMIZER_HOST_PORT:-8080}:8080"
@@ -61,3 +136,4 @@ services:
 
 volumes:
   osrm-data:
+  postgres-data:

@@ -16,6 +16,7 @@ e2e_wait_for_api_health "${health_file}"
 http_code="$("${curl_bin}" -sS -o "${response_file}" -w "%{http_code}" \
   -X POST \
   -H "Content-Type: application/json" \
+  -H "Idempotency-Key: e2e-malformed-payload" \
   --data-binary '{"depot":' \
   "http://127.0.0.1:${api_port}/api/v1/deliveries/optimize")"
 

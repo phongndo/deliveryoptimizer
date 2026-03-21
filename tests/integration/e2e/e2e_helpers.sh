@@ -52,7 +52,7 @@ e2e_compose() {
 }
 
 e2e_stack_up() {
-  e2e_compose up -d --build osrm http-server
+  e2e_compose up -d --build http-server worker
 }
 
 e2e_cleanup() {
@@ -105,5 +105,43 @@ e2e_wait_for_api_health() {
 
   if [[ "${ready}" != "true" ]]; then
     e2e_dump_logs_and_fail "http-server did not become ready on port ${api_port}"
+  fi
+}
+
+e2e_extract_json_string() {
+  local key="$1"
+  local file_path="$2"
+
+  grep -Eo "\"${key}\"[[:space:]]*:[[:space:]]*\"[^\"]+\"" "${file_path}" \
+    | head -n1 \
+    | sed -E 's/.*:[[:space:]]*"([^"]+)"/\1/'
+}
+
+e2e_wait_for_job_success() {
+  local job_id="$1"
+  local output_file="$2"
+  local ready=false
+
+  for _ in $(seq 1 180); do
+    local http_code
+    http_code="$("${curl_bin}" -sS -o "${output_file}" -w "%{http_code}" \
+      "http://127.0.0.1:${api_port}/api/v1/deliveries/optimize/${job_id}")"
+
+    if [[ "${http_code}" == "200" ]] &&
+      grep -Eq '"status"[[:space:]]*:[[:space:]]*"succeeded"' "${output_file}"; then
+      ready=true
+      break
+    fi
+
+    if [[ "${http_code}" == "200" ]] &&
+      grep -Eq '"status"[[:space:]]*:[[:space:]]*"failed"' "${output_file}"; then
+      e2e_dump_logs_and_fail "optimization job ${job_id} failed"
+    fi
+
+    sleep 2
+  done
+
+  if [[ "${ready}" != "true" ]]; then
+    e2e_dump_logs_and_fail "optimization job ${job_id} did not reach succeeded state"
   fi
 }

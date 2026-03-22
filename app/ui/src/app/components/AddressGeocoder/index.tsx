@@ -38,9 +38,17 @@ export default function AddressGeocoder() {
 
   // Hooks: Autocomplete for deliveries
   const deliveryAutocomplete = useAddressAutocomplete();
+  const {
+    showSuggestions: showDeliverySuggestions,
+    clearSuggestions: clearDeliverySuggestions,
+  } = deliveryAutocomplete;
 
   // Hooks: Autocomplete for vehicles
   const vehicleAutocomplete = useAddressAutocomplete();
+  const {
+    showSuggestions: showVehicleSuggestions,
+    clearSuggestions: clearVehicleSuggestions,
+  } = vehicleAutocomplete;
 
   // Hooks: Validation
   const { validateDeliveries, validateVehicles } = useGeocodingValidation();
@@ -351,20 +359,20 @@ export default function AddressGeocoder() {
     const handleClickOutside = (event: MouseEvent) => {
       const target = event.target as Node;
 
-      if (deliveryAutocomplete.showSuggestions) {
+      if (showDeliverySuggestions) {
         const clickedInside = Array.from(document.querySelectorAll('[data-delivery-input]'))
           .some(el => el.contains(target));
         if (!clickedInside) {
-          deliveryAutocomplete.clearSuggestions();
+          clearDeliverySuggestions();
           setActiveDeliveryId(null);
         }
       }
 
-      if (vehicleAutocomplete.showSuggestions) {
+      if (showVehicleSuggestions) {
         const clickedInside = Array.from(document.querySelectorAll('[data-vehicle-input]'))
           .some(el => el.contains(target));
         if (!clickedInside) {
-          vehicleAutocomplete.clearSuggestions();
+          clearVehicleSuggestions();
           setActiveAddressField(null);
         }
       }
@@ -373,10 +381,10 @@ export default function AddressGeocoder() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [
-    deliveryAutocomplete.showSuggestions,
-    deliveryAutocomplete.clearSuggestions,
-    vehicleAutocomplete.showSuggestions,
-    vehicleAutocomplete.clearSuggestions,
+    showDeliverySuggestions,
+    clearDeliverySuggestions,
+    showVehicleSuggestions,
+    clearVehicleSuggestions,
   ]);
 
   return (

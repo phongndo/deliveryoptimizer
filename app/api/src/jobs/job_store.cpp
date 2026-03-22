@@ -18,6 +18,9 @@ using deliveryoptimizer::api::jobs::OptimizeRequestInput;
 using deliveryoptimizer::api::jobs::SubmitJobDisposition;
 using deliveryoptimizer::api::jobs::SubmitJobResult;
 
+constexpr int kJobSubmissionLockKey1 = 41061;
+constexpr int kJobSubmissionLockKey2 = 1;
+
 [[nodiscard]] std::chrono::sys_seconds ToEpochSeconds(const long long epoch_seconds) {
   return std::chrono::sys_seconds{std::chrono::seconds{epoch_seconds}};
 }
@@ -114,6 +117,44 @@ std::optional<JobRecord> FindJobByColumn(ClientT& client, const std::string& col
   return ReadJobRecord(result[0]);
 }
 
+template <typename ClientT>
+std::optional<SubmitJobResult> FindExistingSubmitJobResult(ClientT& client,
+                                                           const std::string& idempotency_key,
+                                                           const std::string& request_hash,
+                                                           const std::string& canonical_request) {
+  const auto existing_result = client.execSqlSync(
+      "SELECT " + std::string{kJobSelectColumns} +
+          " FROM optimization_jobs WHERE idempotency_key = $1 LIMIT 1 FOR UPDATE",
+      idempotency_key);
+  if (existing_result.empty()) {
+    return std::nullopt;
+  }
+
+  JobRecord existing_job = ReadJobRecord(existing_result[0]);
+  if (existing_job.request_hash != request_hash) {
+    return SubmitJobResult{
+        .disposition = SubmitJobDisposition::kConflict,
+        .job = std::move(existing_job),
+    };
+  }
+
+  const auto parsed_existing_request =
+      deliveryoptimizer::api::jobs::ParseStoredOptimizeRequest(existing_job.request_payload_text);
+  if (!parsed_existing_request.has_value() ||
+      deliveryoptimizer::api::jobs::BuildCanonicalRequestString(*parsed_existing_request) !=
+          canonical_request) {
+    return SubmitJobResult{
+        .disposition = SubmitJobDisposition::kConflict,
+        .job = std::move(existing_job),
+    };
+  }
+
+  return SubmitJobResult{
+      .disposition = SubmitJobDisposition::kExisting,
+      .job = std::move(existing_job),
+  };
+}
+
 } // namespace
 
 namespace deliveryoptimizer::api::jobs {
@@ -140,33 +181,20 @@ SubmitJobResult JobStore::SubmitJob(const std::string& idempotency_key,
 
   auto transaction = client_->newTransaction();
   try {
-    const auto existing_result = transaction->execSqlSync(
-        "SELECT " + std::string{kJobSelectColumns} +
-            " FROM optimization_jobs WHERE idempotency_key = $1 LIMIT 1 FOR UPDATE",
-        idempotency_key);
-    if (!existing_result.empty()) {
-      JobRecord existing_job = ReadJobRecord(existing_result[0]);
-      if (existing_job.request_hash != request_hash) {
-        return SubmitJobResult{
-            .disposition = SubmitJobDisposition::kConflict,
-            .job = std::move(existing_job),
-        };
-      }
+    if (const auto existing_result = FindExistingSubmitJobResult(
+            *transaction, idempotency_key, request_hash, canonical_request);
+        existing_result.has_value()) {
+      return *existing_result;
+    }
 
-      const auto parsed_existing_request =
-          ParseStoredOptimizeRequest(existing_job.request_payload_text);
-      if (!parsed_existing_request.has_value() ||
-          BuildCanonicalRequestString(*parsed_existing_request) != canonical_request) {
-        return SubmitJobResult{
-            .disposition = SubmitJobDisposition::kConflict,
-            .job = std::move(existing_job),
-        };
-      }
+    // Serialize new-job admission so queue-cap enforcement and idempotency races stay exact.
+    (void)transaction->execSqlSync("SELECT pg_advisory_xact_lock($1, $2)", kJobSubmissionLockKey1,
+                                   kJobSubmissionLockKey2);
 
-      return SubmitJobResult{
-          .disposition = SubmitJobDisposition::kExisting,
-          .job = std::move(existing_job),
-      };
+    if (const auto existing_result = FindExistingSubmitJobResult(
+            *transaction, idempotency_key, request_hash, canonical_request);
+        existing_result.has_value()) {
+      return *existing_result;
     }
 
     const auto queue_result = transaction->execSqlSync(
@@ -186,11 +214,23 @@ SubmitJobResult JobStore::SubmitJob(const std::string& idempotency_key,
         "job_id, idempotency_key, request_hash, request_payload, status, "
         "attempt_count, max_attempts, created_at_epoch, expires_at_epoch"
         ") VALUES ($1, $2, $3, CAST($4 AS jsonb), 'queued', 0, $5, $6, $7) "
+        "ON CONFLICT (idempotency_key) DO NOTHING "
         "RETURNING " +
             std::string{kJobSelectColumns},
         job_id, idempotency_key, request_hash, canonical_request, max_attempts,
         static_cast<long long>(now.time_since_epoch().count()),
         static_cast<long long>(expires_at.time_since_epoch().count()));
+
+    if (inserted_result.empty()) {
+      if (const auto existing_result = FindExistingSubmitJobResult(
+              *transaction, idempotency_key, request_hash, canonical_request);
+          existing_result.has_value()) {
+        return *existing_result;
+      }
+
+      transaction->rollback();
+      throw std::runtime_error("Failed to load optimization job after insert conflict.");
+    }
 
     return SubmitJobResult{
         .disposition = SubmitJobDisposition::kCreated,
@@ -330,7 +370,8 @@ bool JobStore::MarkExpiredClaimFailed(const std::string& job_id, const std::stri
 
 std::size_t JobStore::CleanupExpiredJobs(const std::chrono::sys_seconds now) const {
   const auto result = client_->execSqlSync(
-      "DELETE FROM optimization_jobs WHERE expires_at_epoch <= $1",
+      "DELETE FROM optimization_jobs "
+      "WHERE status IN ('succeeded', 'failed') AND expires_at_epoch <= $1",
       static_cast<long long>(now.time_since_epoch().count()));
   return static_cast<std::size_t>(result.affectedRows());
 }

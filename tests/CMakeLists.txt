@@ -1,4 +1,5 @@
 find_package(GTest CONFIG REQUIRED)
+find_package(Drogon CONFIG REQUIRED)
 find_package(jsoncpp CONFIG REQUIRED)
 include(GoogleTest)
 
@@ -188,6 +189,39 @@ set_tests_properties(
 )
 
 if(DOCKER_PROGRAM)
+  add_executable(
+    deliveryoptimizer_job_store_integration_tests
+    integration/job_store/job_store_postgres_integration_test.cpp
+  )
+  target_compile_features(deliveryoptimizer_job_store_integration_tests PRIVATE cxx_std_20)
+  target_compile_definitions(
+    deliveryoptimizer_job_store_integration_tests
+    PRIVATE
+      DELIVERYOPTIMIZER_DOCKER_BIN="${DOCKER_PROGRAM}"
+  )
+  target_include_directories(
+    deliveryoptimizer_job_store_integration_tests
+    PRIVATE
+      "${CMAKE_SOURCE_DIR}/app/api/include"
+  )
+  target_link_libraries(
+    deliveryoptimizer_job_store_integration_tests
+    PRIVATE
+      deliveryoptimizer_job_runtime
+      GTest::gtest
+      Drogon::Drogon
+  )
+  if(DELIVERYOPTIMIZER_ENABLE_WARNINGS)
+    deliveryoptimizer_set_warnings(deliveryoptimizer_job_store_integration_tests)
+  endif()
+
+  gtest_discover_tests(
+    deliveryoptimizer_job_store_integration_tests
+    DISCOVERY_TIMEOUT 30
+    PROPERTIES
+      LABELS "integration;docker;postgres"
+  )
+
   set(DELIVERYOPTIMIZER_E2E_ENV_FILE "${CMAKE_SOURCE_DIR}/tests/integration/e2e/e2e_stack.env")
   set(DELIVERYOPTIMIZER_E2E_COMPOSE_FILE "${CMAKE_SOURCE_DIR}/deploy/compose/docker-compose.arm64.yml")
 

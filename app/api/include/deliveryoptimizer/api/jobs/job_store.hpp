@@ -58,6 +58,12 @@ public:
 
   bool Ping() const;
 
+  bool UpdateWorkerHeartbeat(const std::string& worker_id, bool healthy,
+                             const std::string& detail,
+                             std::chrono::sys_seconds heartbeat_at) const;
+
+  bool HasHealthyWorker(std::chrono::sys_seconds now, std::chrono::seconds max_age) const;
+
   SubmitJobResult SubmitJob(const std::string& idempotency_key, const OptimizeRequestInput& input,
                             int max_attempts, int retention_seconds, int queue_cap) const;
 

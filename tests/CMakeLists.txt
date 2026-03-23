@@ -188,7 +188,54 @@ set_tests_properties(
     LABELS "integration;local;regression"
 )
 
+add_executable(
+  deliveryoptimizer_api_job_tests
+  api/process_claimed_job_uses_solver_finish_time_test.cpp
+)
+target_compile_features(deliveryoptimizer_api_job_tests PRIVATE cxx_std_20)
+target_include_directories(
+  deliveryoptimizer_api_job_tests
+  PRIVATE
+    "${CMAKE_SOURCE_DIR}/app/api/include"
+    "${CMAKE_SOURCE_DIR}/app/api/src"
+)
+target_link_libraries(
+  deliveryoptimizer_api_job_tests
+  PRIVATE
+    deliveryoptimizer_job_runtime
+    GTest::gtest
+    JsonCpp::JsonCpp
+)
+if(DELIVERYOPTIMIZER_ENABLE_WARNINGS)
+  deliveryoptimizer_set_warnings(deliveryoptimizer_api_job_tests)
+endif()
+
+gtest_discover_tests(
+  deliveryoptimizer_api_job_tests
+  DISCOVERY_TIMEOUT 30
+  PROPERTIES
+    LABELS "unit;api"
+)
+
 if(DOCKER_PROGRAM)
+  add_test(
+    NAME DeliveryOptimizerHealthTest.RequiresReadyWorker
+    COMMAND "${BASH_PROGRAM}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/integration/http_server/health_requires_ready_worker_test.sh"
+            "$<TARGET_FILE:deliveryoptimizer_api>"
+            "$<TARGET_FILE:deliveryoptimizer_migrate>"
+            "${PYTHON3_PROGRAM}"
+            "${DOCKER_PROGRAM}"
+            "${CURL_PROGRAM}"
+  )
+  set_tests_properties(
+    DeliveryOptimizerHealthTest.RequiresReadyWorker
+    PROPERTIES
+      TIMEOUT 60
+      LABELS "integration;api;local;docker;regression"
+      ENVIRONMENT "DELIVERYOPTIMIZER_TEST_PORT=37000;DELIVERYOPTIMIZER_OSRM_STUB_PORT=53000"
+  )
+
   add_executable(
     deliveryoptimizer_job_store_integration_tests
     integration/job_store/job_store_postgres_integration_test.cpp

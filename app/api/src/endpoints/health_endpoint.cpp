@@ -18,6 +18,7 @@ constexpr std::string_view kOsrmProbePath =
     "/nearest/v1/driving/-122.4194,37.7749?number=1&generate_hints=false";
 constexpr double kOsrmProbeTimeoutSeconds = 4.0;
 constexpr std::chrono::seconds kOsrmProbeCacheTtl{2};
+constexpr std::chrono::seconds kWorkerHeartbeatMaxAge{15};
 
 struct DependencyCheck {
   bool ready;
@@ -35,6 +36,25 @@ struct DependencyCheck {
       .ready = ready,
       .detail = ready ? "ok" : "down",
   };
+}
+
+[[nodiscard]] DependencyCheck CheckWorker() {
+  const auto job_store = deliveryoptimizer::api::GetApiJobStore();
+  if (!job_store) {
+    return DependencyCheck{.ready = false, .detail = "unavailable"};
+  }
+
+  try {
+    const auto now = std::chrono::time_point_cast<std::chrono::seconds>(
+        std::chrono::system_clock::now());
+    const bool ready = job_store->HasHealthyWorker(now, kWorkerHeartbeatMaxAge);
+    return DependencyCheck{
+        .ready = ready,
+        .detail = ready ? "ok" : "down",
+    };
+  } catch (...) {
+    return DependencyCheck{.ready = false, .detail = "down"};
+  }
 }
 
 [[nodiscard]] DependencyCheck EvaluateOsrmProbe(const drogon::ReqResult result,
@@ -76,14 +96,17 @@ struct DependencyCheck {
 }
 
 [[nodiscard]] drogon::HttpResponsePtr BuildHealthResponse(const DependencyCheck& database_check,
+                                                          const DependencyCheck& worker_check,
                                                           const DependencyCheck& osrm_check) {
   Json::Value body{Json::objectValue};
-  const bool overall_ready = database_check.ready && osrm_check.ready;
+  const bool overall_ready = database_check.ready && worker_check.ready && osrm_check.ready;
   body["status"] = overall_ready ? "ok" : "degraded";
 
   Json::Value checks{Json::objectValue};
   checks["database"] = database_check.ready ? "ok" : "down";
   checks["database_detail"] = database_check.detail;
+  checks["worker"] = worker_check.ready ? "ok" : "down";
+  checks["worker_detail"] = worker_check.detail;
   checks["osrm"] = osrm_check.ready ? "ok" : "down";
   checks["osrm_detail"] = osrm_check.detail;
   body["checks"] = std::move(checks);
@@ -142,8 +165,9 @@ void RegisterHealthEndpoint(drogon::HttpAppFramework& app) {
       "/health", [](const drogon::HttpRequestPtr& /*request*/,
                     std::function<void(const drogon::HttpResponsePtr&)>&& callback) {
         const DependencyCheck database_check = CheckDatabase();
+        const DependencyCheck worker_check = CheckWorker();
         if (const auto cached_probe = GetCachedOsrmProbe()) {
-          std::move(callback)(BuildHealthResponse(database_check, *cached_probe));
+          std::move(callback)(BuildHealthResponse(database_check, worker_check, *cached_probe));
           return;
         }
 
@@ -154,13 +178,13 @@ void RegisterHealthEndpoint(drogon::HttpAppFramework& app) {
 
         osrm_client->sendRequest(
             osrm_probe_request,
-            [database_check, osrm_client = std::move(osrm_client),
+            [database_check, worker_check, osrm_client = std::move(osrm_client),
              callback = std::move(callback)](const drogon::ReqResult result,
                                              const drogon::HttpResponsePtr& response) mutable {
               (void)osrm_client;
               const DependencyCheck osrm_probe = EvaluateOsrmProbe(result, response);
               CacheOsrmProbe(osrm_probe);
-              std::move(callback)(BuildHealthResponse(database_check, osrm_probe));
+              std::move(callback)(BuildHealthResponse(database_check, worker_check, osrm_probe));
             },
             kOsrmProbeTimeoutSeconds);
       });

@@ -125,6 +125,13 @@ void InitializeJobStoreSchema(const drogon::orm::DbClientPtr& client) {
       "  expires_at_epoch BIGINT NOT NULL"
       ")");
   client->execSqlSync(
+      "CREATE TABLE IF NOT EXISTS optimization_job_workers ("
+      "  worker_id TEXT PRIMARY KEY,"
+      "  healthy BOOLEAN NOT NULL,"
+      "  detail TEXT NOT NULL,"
+      "  heartbeat_at_epoch BIGINT NOT NULL"
+      ")");
+  client->execSqlSync(
       "CREATE INDEX IF NOT EXISTS optimization_jobs_status_created_idx "
       "ON optimization_jobs (status, created_at_epoch)");
   client->execSqlSync(
@@ -133,6 +140,9 @@ void InitializeJobStoreSchema(const drogon::orm::DbClientPtr& client) {
   client->execSqlSync(
       "CREATE INDEX IF NOT EXISTS optimization_jobs_expires_idx "
       "ON optimization_jobs (expires_at_epoch)");
+  client->execSqlSync(
+      "CREATE INDEX IF NOT EXISTS optimization_job_workers_heartbeat_idx "
+      "ON optimization_job_workers (heartbeat_at_epoch)");
 }
 
 class ScopedPostgresContainer {
@@ -394,6 +404,54 @@ TEST_F(JobStorePostgresIntegrationTest, CleanupKeepsExpiredQueuedAndRunningJobs)
   EXPECT_EQ(remaining_rows[0]["status"].as<std::string>(), "queued");
   EXPECT_EQ(remaining_rows[1]["job_id"].as<std::string>(), "running-job");
   EXPECT_EQ(remaining_rows[1]["status"].as<std::string>(), "running");
+}
+
+TEST_F(JobStorePostgresIntegrationTest, PingFailsWhenOptimizationJobsTableIsMissing) {
+  auto client = CreateClient(1);
+  JobStore store{client};
+
+  client->execSqlSync("DROP TABLE optimization_jobs");
+
+  EXPECT_FALSE(store.Ping());
+}
+
+TEST_F(JobStorePostgresIntegrationTest,
+       ClaimNextJobFailsExpiredRunningJobWhenRuntimeMaxAttemptsDrops) {
+  auto client = CreateClient(1);
+  JobStore store{CreateClient(2)};
+
+  const OptimizeRequestInput input = BuildRequest("reclaim");
+  const std::string request_payload =
+      deliveryoptimizer::api::jobs::BuildCanonicalRequestString(input);
+  const std::string request_hash = ComputeFnv1a64Hex(request_payload);
+  const auto now = std::chrono::time_point_cast<std::chrono::seconds>(std::chrono::system_clock::now());
+  const auto created_at = now - std::chrono::seconds{60};
+  const auto lease_expired_at = now - std::chrono::seconds{5};
+  const auto expires_at = now + std::chrono::hours{1};
+
+  client->execSqlSync(
+      "INSERT INTO optimization_jobs ("
+      "job_id, idempotency_key, request_hash, request_payload, status, "
+      "attempt_count, max_attempts, worker_id, lease_expires_at_epoch, "
+      "created_at_epoch, started_at_epoch, expires_at_epoch"
+      ") VALUES ($1, $2, $3, CAST($4 AS jsonb), 'running', $5, $6, $7, $8, $9, $10, $11)",
+      "running-job", "reclaim-key", request_hash, request_payload, 2, 5, "old-worker",
+      static_cast<long long>(lease_expired_at.time_since_epoch().count()),
+      static_cast<long long>(created_at.time_since_epoch().count()),
+      static_cast<long long>(created_at.time_since_epoch().count()),
+      static_cast<long long>(expires_at.time_since_epoch().count()));
+
+  const auto claimed_job = store.ClaimNextJob("new-worker", 30, 2);
+  EXPECT_FALSE(claimed_job.has_value());
+
+  const auto rows = client->execSqlSync(
+      "SELECT status, error_code, completed_at_epoch, lease_expires_at_epoch "
+      "FROM optimization_jobs WHERE job_id = 'running-job'");
+  ASSERT_EQ(rows.size(), 1U);
+  EXPECT_EQ(rows[0]["status"].as<std::string>(), "failed");
+  EXPECT_EQ(rows[0]["error_code"].as<std::string>(), "worker_abandoned");
+  EXPECT_FALSE(rows[0]["completed_at_epoch"].isNull());
+  EXPECT_TRUE(rows[0]["lease_expires_at_epoch"].isNull());
 }
 
 } // namespace

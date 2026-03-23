@@ -11,6 +11,7 @@ target_sources(
     src/jobs/runtime_options.cpp
     src/jobs/vroom_runner.cpp
     src/jobs/worker.cpp
+    src/jobs/worker_execution.cpp
   PUBLIC
     FILE_SET HEADERS
     BASE_DIRS include

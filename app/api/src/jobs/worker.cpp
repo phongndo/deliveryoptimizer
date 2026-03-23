@@ -4,7 +4,9 @@
 #include "deliveryoptimizer/api/jobs/optimize_job.hpp"
 #include "deliveryoptimizer/api/jobs/runtime_options.hpp"
 #include "deliveryoptimizer/api/jobs/vroom_runner.hpp"
+#include "worker_execution.hpp"
 
+#include <array>
 #include <atomic>
 #include <chrono>
 #include <csignal>
@@ -20,17 +22,34 @@
 
 namespace {
 
-std::atomic_bool g_should_stop{false};
+using namespace std::chrono_literals;
+
+constexpr int kWorkerHeartbeatIntervalSeconds = 5;
+
+std::atomic_bool& ShouldStop() {
+  static std::atomic_bool should_stop{false};
+  return should_stop;
+}
 
 void HandleWorkerSignal(const int /*signal_number*/) {
-  g_should_stop.store(true);
+  ShouldStop().store(true);
+}
+
+std::string BuildWorkerIdentity(const std::string& suffix) {
+  std::array<char, 256> hostname{};
+  if (gethostname(hostname.data(), hostname.size()) != 0) {
+    return "unknown-host:" + std::to_string(getpid()) + ":" + suffix;
+  }
+
+  hostname.back() = '\0';
+  return std::string{hostname.data()} + ":" + std::to_string(getpid()) + ":" + suffix;
 }
 
 std::string BuildWorkerId(const std::size_t index) {
-  std::array<char, 256> hostname{};
-  (void)gethostname(hostname, sizeof(hostname));
-  return std::string{hostname} + ":" + std::to_string(getpid()) + ":" + std::to_string(index);
+  return BuildWorkerIdentity(std::to_string(index));
 }
+
+std::string BuildWorkerHeartbeatId() { return BuildWorkerIdentity("heartbeat"); }
 
 void RunWorkerLoop(const std::shared_ptr<deliveryoptimizer::api::jobs::JobStore>& job_store,
                    const deliveryoptimizer::api::jobs::RuntimeOptions& runtime_options,
@@ -41,7 +60,7 @@ void RunWorkerLoop(const std::shared_ptr<deliveryoptimizer::api::jobs::JobStore>
   const auto poll_interval =
       std::chrono::milliseconds{runtime_options.worker_poll_interval_ms};
 
-  while (!g_should_stop.load()) {
+  while (!ShouldStop().load()) {
     try {
       const auto claimed_job =
           job_store->ClaimNextJob(worker_id, lease_seconds, runtime_options.job_max_attempts);
@@ -50,40 +69,30 @@ void RunWorkerLoop(const std::shared_ptr<deliveryoptimizer::api::jobs::JobStore>
         continue;
       }
 
-      const auto parsed_request = deliveryoptimizer::api::jobs::ParseStoredOptimizeRequest(
-          claimed_job->request_payload_text);
-      const auto now = std::chrono::time_point_cast<std::chrono::seconds>(
-          std::chrono::system_clock::now());
-      const auto expires_at = now + std::chrono::seconds{runtime_options.job_retention_seconds};
-
-      if (!parsed_request.has_value()) {
-        (void)job_store->MarkJobFailed(claimed_job->job_id, worker_id, "invalid_stored_request",
-                                       "Stored optimize request payload is invalid.", now,
-                                       expires_at);
-        continue;
-      }
-
-      const Json::Value vroom_input =
-          deliveryoptimizer::api::jobs::BuildVroomInput(parsed_request.value());
-      const auto vroom_result =
-          deliveryoptimizer::api::jobs::RunVroom(vroom_input, vroom_config);
-      if (vroom_result.status == deliveryoptimizer::api::jobs::VroomRunStatus::kTimedOut) {
-        (void)job_store->MarkJobFailed(claimed_job->job_id, worker_id, "solver_timeout",
-                                       "Routing optimization timed out.", now, expires_at);
-        continue;
-      }
-
-      if (!vroom_result.output.has_value()) {
-        (void)job_store->MarkJobFailed(claimed_job->job_id, worker_id, "solver_failed",
-                                       "Routing optimization failed.", now, expires_at);
-        continue;
-      }
-
-      const Json::Value result = deliveryoptimizer::api::jobs::BuildSuccessOptimizeResult(
-          parsed_request.value(), *vroom_result.output);
-      (void)job_store->MarkJobSucceeded(
-          claimed_job->job_id, worker_id,
-          deliveryoptimizer::api::jobs::SerializeJsonCompact(result), now, expires_at);
+      const std::string job_id = claimed_job->job_id;
+      deliveryoptimizer::api::jobs::ClaimedJobExecutionHooks execution_hooks{
+          .run_vroom = deliveryoptimizer::api::jobs::RunVroom,
+          .now =
+              [] {
+                return std::chrono::time_point_cast<std::chrono::seconds>(
+                    std::chrono::system_clock::now());
+              },
+          .mark_job_succeeded =
+              [&](const std::string& result_payload_text, const std::chrono::sys_seconds completed_at,
+                  const std::chrono::sys_seconds expires_at) {
+                return job_store->MarkJobSucceeded(job_id, worker_id, result_payload_text,
+                                                   completed_at, expires_at);
+              },
+          .mark_job_failed =
+              [&](const std::string& error_code, const std::string& error_message,
+                  const std::chrono::sys_seconds completed_at,
+                  const std::chrono::sys_seconds expires_at) {
+                return job_store->MarkJobFailed(job_id, worker_id, error_code, error_message,
+                                                completed_at, expires_at);
+              },
+      };
+      deliveryoptimizer::api::jobs::ProcessClaimedJob(*claimed_job, runtime_options, vroom_config,
+                                                      execution_hooks);
     } catch (const std::exception& exception) {
       std::cerr << "Worker loop error: " << exception.what() << "\n";
       std::this_thread::sleep_for(poll_interval);
@@ -92,9 +101,7 @@ void RunWorkerLoop(const std::shared_ptr<deliveryoptimizer::api::jobs::JobStore>
 }
 
 void RunCleanupLoop(const std::shared_ptr<deliveryoptimizer::api::jobs::JobStore>& job_store) {
-  using namespace std::chrono_literals;
-
-  while (!g_should_stop.load()) {
+  while (!ShouldStop().load()) {
     try {
       const auto now = std::chrono::time_point_cast<std::chrono::seconds>(
           std::chrono::system_clock::now());
@@ -103,7 +110,27 @@ void RunCleanupLoop(const std::shared_ptr<deliveryoptimizer::api::jobs::JobStore
       std::cerr << "Cleanup loop error: " << exception.what() << "\n";
     }
 
-    for (int step = 0; step < 60 && !g_should_stop.load(); ++step) {
+    for (int step = 0; step < 60 && !ShouldStop().load(); ++step) {
+      std::this_thread::sleep_for(1s);
+    }
+  }
+}
+
+void RunHeartbeatLoop(const std::shared_ptr<deliveryoptimizer::api::jobs::JobStore>& job_store) {
+  const std::string worker_id = BuildWorkerHeartbeatId();
+
+  while (!ShouldStop().load()) {
+    try {
+      const auto now = std::chrono::time_point_cast<std::chrono::seconds>(
+          std::chrono::system_clock::now());
+      const bool healthy = deliveryoptimizer::api::jobs::IsVroomBinaryAvailable();
+      (void)job_store->UpdateWorkerHeartbeat(
+          worker_id, healthy, healthy ? "ok" : "vroom unavailable", now);
+    } catch (const std::exception& exception) {
+      std::cerr << "Heartbeat loop error: " << exception.what() << "\n";
+    }
+
+    for (int step = 0; step < kWorkerHeartbeatIntervalSeconds && !ShouldStop().load(); ++step) {
       std::this_thread::sleep_for(1s);
     }
   }
@@ -131,16 +158,18 @@ int RunWorker() {
     return 1;
   }
 
+  ShouldStop().store(false);
   std::signal(SIGINT, HandleWorkerSignal);
   std::signal(SIGTERM, HandleWorkerSignal);
 
   std::vector<std::thread> threads;
-  threads.reserve(static_cast<std::size_t>(runtime_options.worker_concurrency) + 1U);
+  threads.reserve(static_cast<std::size_t>(runtime_options.worker_concurrency) + 2U);
   for (int index = 0; index < runtime_options.worker_concurrency; ++index) {
     threads.emplace_back(RunWorkerLoop, job_store, runtime_options, vroom_config,
                          BuildWorkerId(static_cast<std::size_t>(index)));
   }
   threads.emplace_back(RunCleanupLoop, job_store);
+  threads.emplace_back(RunHeartbeatLoop, job_store);
 
   for (auto& thread : threads) {
     thread.join();

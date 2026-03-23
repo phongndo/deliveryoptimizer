@@ -163,11 +163,47 @@ JobStore::JobStore(drogon::orm::DbClientPtr client) : client_(std::move(client))
 
 bool JobStore::Ping() const {
   try {
-    (void)client_->execSqlSync("SELECT 1");
-    return true;
+    const auto result = client_->execSqlSync(
+        "SELECT "
+        "EXISTS ("
+        "  SELECT 1 FROM information_schema.tables "
+        "  WHERE table_schema = current_schema() AND table_name = 'optimization_jobs'"
+        ") AS has_jobs, "
+        "EXISTS ("
+        "  SELECT 1 FROM information_schema.tables "
+        "  WHERE table_schema = current_schema() "
+        "    AND table_name = 'optimization_job_workers'"
+        ") AS has_worker_heartbeats");
+    return result[0]["has_jobs"].as<bool>() && result[0]["has_worker_heartbeats"].as<bool>();
   } catch (...) {
     return false;
   }
+}
+
+bool JobStore::UpdateWorkerHeartbeat(const std::string& worker_id, const bool healthy,
+                                     const std::string& detail,
+                                     const std::chrono::sys_seconds heartbeat_at) const {
+  const auto result = client_->execSqlSync(
+      "INSERT INTO optimization_job_workers (worker_id, healthy, detail, heartbeat_at_epoch) "
+      "VALUES ($1, $2, $3, $4) "
+      "ON CONFLICT (worker_id) DO UPDATE "
+      "SET healthy = EXCLUDED.healthy, "
+      "    detail = EXCLUDED.detail, "
+      "    heartbeat_at_epoch = EXCLUDED.heartbeat_at_epoch",
+      worker_id, healthy, detail,
+      static_cast<long long>(heartbeat_at.time_since_epoch().count()));
+  return result.affectedRows() == 1;
+}
+
+bool JobStore::HasHealthyWorker(const std::chrono::sys_seconds now,
+                                const std::chrono::seconds max_age) const {
+  const auto result = client_->execSqlSync(
+      "SELECT worker_id FROM optimization_job_workers "
+      "WHERE healthy = TRUE "
+      "AND heartbeat_at_epoch >= $1 "
+      "LIMIT 1",
+      static_cast<long long>((now - max_age).time_since_epoch().count()));
+  return !result.empty();
 }
 
 SubmitJobResult JobStore::SubmitJob(const std::string& idempotency_key,
@@ -259,14 +295,15 @@ std::optional<JobRecord> JobStore::ClaimNextJob(const std::string& worker_id, co
         "SET status = 'failed', "
         "error_code = 'worker_abandoned', "
         "error_message = 'Job lease expired too many times.', "
+        "lease_expires_at_epoch = NULL, "
         "completed_at_epoch = $1, "
         "expires_at_epoch = $2 "
         "WHERE status = 'running' "
         "AND lease_expires_at_epoch IS NOT NULL "
         "AND lease_expires_at_epoch <= $1 "
-        "AND attempt_count >= max_attempts",
+        "AND attempt_count >= LEAST(max_attempts, $3)",
         static_cast<long long>(now.time_since_epoch().count()),
-        static_cast<long long>(expires_at.time_since_epoch().count()));
+        static_cast<long long>(expires_at.time_since_epoch().count()), max_attempts);
 
     const std::chrono::sys_seconds lease_expires_at = now + std::chrono::seconds{lease_seconds};
     const auto result = transaction->execSqlSync(
@@ -276,8 +313,7 @@ std::optional<JobRecord> JobStore::ClaimNextJob(const std::string& worker_id, co
         "     OR (status = 'running' "
         "         AND lease_expires_at_epoch IS NOT NULL "
         "         AND lease_expires_at_epoch <= $1 "
-        "         AND attempt_count < max_attempts "
-        "         AND attempt_count < $4) "
+        "         AND attempt_count < LEAST(max_attempts, $4)) "
         "  ORDER BY created_at_epoch "
         "  FOR UPDATE SKIP LOCKED "
         "  LIMIT 1"

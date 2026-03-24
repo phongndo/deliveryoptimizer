@@ -441,17 +441,20 @@ TEST_F(JobStorePostgresIntegrationTest,
       static_cast<long long>(created_at.time_since_epoch().count()),
       static_cast<long long>(expires_at.time_since_epoch().count()));
 
-  const auto claimed_job = store.ClaimNextJob("new-worker", 30, 2);
+  const int retention_seconds = 90;
+  const auto claimed_job = store.ClaimNextJob("new-worker", 30, 2, retention_seconds);
   EXPECT_FALSE(claimed_job.has_value());
 
   const auto rows = client->execSqlSync(
-      "SELECT status, error_code, completed_at_epoch, lease_expires_at_epoch "
+      "SELECT status, error_code, completed_at_epoch, lease_expires_at_epoch, expires_at_epoch "
       "FROM optimization_jobs WHERE job_id = 'running-job'");
   ASSERT_EQ(rows.size(), 1U);
   EXPECT_EQ(rows[0]["status"].as<std::string>(), "failed");
   EXPECT_EQ(rows[0]["error_code"].as<std::string>(), "worker_abandoned");
   EXPECT_FALSE(rows[0]["completed_at_epoch"].isNull());
   EXPECT_TRUE(rows[0]["lease_expires_at_epoch"].isNull());
+  EXPECT_EQ(rows[0]["expires_at_epoch"].as<long long>() - rows[0]["completed_at_epoch"].as<long long>(),
+            retention_seconds);
 }
 
 } // namespace

@@ -70,7 +70,7 @@ public:
   std::optional<JobRecord> FindJobById(const std::string& job_id) const;
 
   std::optional<JobRecord> ClaimNextJob(const std::string& worker_id, int lease_seconds,
-                                        int max_attempts) const;
+                                        int max_attempts, int retention_seconds) const;
 
   bool MarkJobSucceeded(const std::string& job_id, const std::string& worker_id,
                         const std::string& result_payload_text,

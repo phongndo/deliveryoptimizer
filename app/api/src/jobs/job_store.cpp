@@ -283,10 +283,11 @@ std::optional<JobRecord> JobStore::FindJobById(const std::string& job_id) const 
 }
 
 std::optional<JobRecord> JobStore::ClaimNextJob(const std::string& worker_id, const int lease_seconds,
-                                                const int max_attempts) const {
+                                                const int max_attempts,
+                                                const int retention_seconds) const {
   const std::chrono::sys_seconds now =
       std::chrono::time_point_cast<std::chrono::seconds>(std::chrono::system_clock::now());
-  const std::chrono::sys_seconds expires_at = now + std::chrono::hours{24};
+  const std::chrono::sys_seconds expires_at = now + std::chrono::seconds{retention_seconds};
 
   auto transaction = client_->newTransaction();
   try {

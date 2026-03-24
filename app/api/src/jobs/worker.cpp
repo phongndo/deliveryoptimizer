@@ -62,8 +62,9 @@ void RunWorkerLoop(const std::shared_ptr<deliveryoptimizer::api::jobs::JobStore>
 
   while (!ShouldStop().load()) {
     try {
-      const auto claimed_job =
-          job_store->ClaimNextJob(worker_id, lease_seconds, runtime_options.job_max_attempts);
+      const auto claimed_job = job_store->ClaimNextJob(
+          worker_id, lease_seconds, runtime_options.job_max_attempts,
+          runtime_options.job_retention_seconds);
       if (!claimed_job.has_value()) {
         std::this_thread::sleep_for(poll_interval);
         continue;

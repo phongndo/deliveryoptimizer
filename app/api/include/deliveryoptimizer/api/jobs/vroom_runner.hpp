@@ -27,9 +27,9 @@ struct VroomRuntimeConfig {
   int timeout_seconds;
 };
 
-bool IsVroomBinaryAvailable();
-
 VroomRuntimeConfig ResolveVroomRuntimeConfigFromEnv();
+
+bool IsVroomBinaryAvailable(const VroomRuntimeConfig& runtime_config);
 
 VroomRunResult RunVroom(const Json::Value& input_payload, const VroomRuntimeConfig& runtime_config);
 

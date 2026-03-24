@@ -191,6 +191,7 @@ set_tests_properties(
 add_executable(
   deliveryoptimizer_api_job_tests
   api/process_claimed_job_uses_solver_finish_time_test.cpp
+  api/vroom_runner_availability_test.cpp
 )
 target_compile_features(deliveryoptimizer_api_job_tests PRIVATE cxx_std_20)
 target_include_directories(

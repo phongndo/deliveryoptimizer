@@ -116,14 +116,15 @@ void RunCleanupLoop(const std::shared_ptr<deliveryoptimizer::api::jobs::JobStore
   }
 }
 
-void RunHeartbeatLoop(const std::shared_ptr<deliveryoptimizer::api::jobs::JobStore>& job_store) {
+void RunHeartbeatLoop(const std::shared_ptr<deliveryoptimizer::api::jobs::JobStore>& job_store,
+                      const deliveryoptimizer::api::jobs::VroomRuntimeConfig& vroom_config) {
   const std::string worker_id = BuildWorkerHeartbeatId();
 
   while (!ShouldStop().load()) {
     try {
       const auto now = std::chrono::time_point_cast<std::chrono::seconds>(
           std::chrono::system_clock::now());
-      const bool healthy = deliveryoptimizer::api::jobs::IsVroomBinaryAvailable();
+      const bool healthy = deliveryoptimizer::api::jobs::IsVroomBinaryAvailable(vroom_config);
       (void)job_store->UpdateWorkerHeartbeat(
           worker_id, healthy, healthy ? "ok" : "vroom unavailable", now);
     } catch (const std::exception& exception) {
@@ -169,7 +170,7 @@ int RunWorker() {
                          BuildWorkerId(static_cast<std::size_t>(index)));
   }
   threads.emplace_back(RunCleanupLoop, job_store);
-  threads.emplace_back(RunHeartbeatLoop, job_store);
+  threads.emplace_back(RunHeartbeatLoop, job_store, vroom_config);
 
   for (auto& thread : threads) {
     thread.join();
@@ -180,6 +181,7 @@ int RunWorker() {
 
 int RunWorkerHealthcheck() {
   const RuntimeOptions runtime_options = LoadRuntimeOptionsFromEnv();
+  const VroomRuntimeConfig vroom_config = ResolveVroomRuntimeConfigFromEnv();
   auto client =
       drogon::orm::DbClient::newPgClient(runtime_options.database_url,
                                          runtime_options.worker_db_connections);
@@ -188,7 +190,7 @@ int RunWorkerHealthcheck() {
   }
 
   JobStore job_store{std::move(client)};
-  if (!job_store.Ping() || !IsVroomBinaryAvailable()) {
+  if (!job_store.Ping() || !IsVroomBinaryAvailable(vroom_config)) {
     return 1;
   }
 

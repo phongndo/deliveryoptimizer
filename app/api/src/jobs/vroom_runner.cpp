@@ -35,6 +35,7 @@ constexpr std::string_view kDefaultVroomHost = "osrm";
 constexpr std::string_view kDefaultVroomPort = "5001";
 constexpr std::string_view kDefaultVroomTimeoutSeconds = "30";
 constexpr int kDefaultVroomTimeoutSecondsInt = 30;
+constexpr int kVroomProbeTimeoutSeconds = 5;
 constexpr std::string_view kVroomStdoutPath = "/dev/stdout";
 constexpr std::size_t kMaxVroomOutputBytes = 8U * 1024U * 1024U;
 
@@ -268,6 +269,21 @@ private:
   return spawn_arguments;
 }
 
+[[nodiscard]] SpawnArguments BuildProbeSpawnArguments(const VroomRuntimeConfig& runtime_config) {
+  SpawnArguments spawn_arguments;
+  spawn_arguments.storage = {
+      runtime_config.vroom_bin,
+      "--help",
+  };
+
+  spawn_arguments.argv.reserve(spawn_arguments.storage.size() + 1U);
+  for (std::string& argument : spawn_arguments.storage) {
+    spawn_arguments.argv.push_back(argument.data());
+  }
+  spawn_arguments.argv.push_back(nullptr);
+  return spawn_arguments;
+}
+
 [[nodiscard]] bool TryWaitForProcessExit(const pid_t process_id, int& command_status,
                                          bool& process_exited) {
   if (process_exited) {
@@ -423,18 +439,6 @@ MonitorProcessOutput(const pid_t process_id, const int timeout_seconds,
 
 namespace deliveryoptimizer::api::jobs {
 
-bool IsVroomBinaryAvailable() {
-  const std::string vroom_bin =
-      deliveryoptimizer::api::ResolveEnvOrDefault("VROOM_BIN", kDefaultVroomBin);
-  std::error_code error;
-  const std::filesystem::file_status status = std::filesystem::status(vroom_bin, error);
-  if (error || !std::filesystem::is_regular_file(status)) {
-    return false;
-  }
-
-  return ::access(vroom_bin.c_str(), X_OK) == 0;
-}
-
 VroomRuntimeConfig ResolveVroomRuntimeConfigFromEnv() {
   const std::string vroom_timeout = deliveryoptimizer::api::ResolveEnvOrDefault(
       "VROOM_TIMEOUT_SECONDS", kDefaultVroomTimeoutSeconds);
@@ -449,6 +453,53 @@ VroomRuntimeConfig ResolveVroomRuntimeConfigFromEnv() {
       .vroom_port = deliveryoptimizer::api::ResolveEnvOrDefault("VROOM_PORT", kDefaultVroomPort),
       .timeout_seconds = timeout_seconds,
   };
+}
+
+bool IsVroomBinaryAvailable(const VroomRuntimeConfig& runtime_config) {
+  auto pipe_ends = CreatePipeEnds();
+  if (!pipe_ends.has_value()) {
+    return false;
+  }
+
+  ScopedFileDescriptor output_read_end = std::move(pipe_ends->read_end);
+  ScopedFileDescriptor output_write_end = std::move(pipe_ends->write_end);
+  if (!SetNonBlocking(output_read_end.Get())) {
+    return false;
+  }
+
+  ScopedSpawnFileActions spawn_actions;
+  if (!spawn_actions.IsInitialized()) {
+    return false;
+  }
+  if (posix_spawn_file_actions_adddup2(spawn_actions.Get(), output_write_end.Get(),
+                                       STDOUT_FILENO) != 0 ||
+      posix_spawn_file_actions_adddup2(spawn_actions.Get(), output_write_end.Get(),
+                                       STDERR_FILENO) != 0 ||
+      posix_spawn_file_actions_addclose(spawn_actions.Get(), output_read_end.Get()) != 0 ||
+      posix_spawn_file_actions_addclose(spawn_actions.Get(), output_write_end.Get()) != 0) {
+    return false;
+  }
+
+  SpawnArguments spawn_arguments = BuildProbeSpawnArguments(runtime_config);
+  pid_t vroom_pid = -1;
+  const int spawn_status =
+      posix_spawn(&vroom_pid, runtime_config.vroom_bin.c_str(), spawn_actions.Get(), nullptr,
+                  spawn_arguments.argv.data(), environ);
+  if (spawn_status != 0) {
+    return false;
+  }
+  output_write_end.Reset(-1);
+
+  const ProcessMonitorResult monitor_result =
+      MonitorProcessOutput(vroom_pid, kVroomProbeTimeoutSeconds, output_read_end);
+  if (monitor_result.status != ProcessMonitorStatus::kCompleted) {
+    int reap_status = monitor_result.command_status;
+    (void)KillAndReapProcess(vroom_pid, reap_status);
+    return false;
+  }
+
+  return WIFEXITED(monitor_result.command_status) &&
+         WEXITSTATUS(monitor_result.command_status) == 0;
 }
 
 VroomRunResult RunVroom(const Json::Value& input_payload, const VroomRuntimeConfig& runtime_config) {

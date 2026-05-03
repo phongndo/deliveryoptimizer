@@ -9,6 +9,7 @@ import VehicleRow from "./VehicleRow";
 import VehicleDetailsOverlay from "./VehicleDetailsOverlay";
 import ConfirmVehicleDeletionOverlay from "./ConfirmVehicleDeletionOverlay";
 import type { VehicleRow as VehicleRowType } from "../types/delivery";
+import { DESKTOP_VEHICLE_GRID_CLASS } from "../formStyles";
 import {
   NAVBAR_V2_BTN_OUTLINE,
   VEHICLE_INFO_CONTAINER,

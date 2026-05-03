@@ -36,7 +36,7 @@ export const SIDEBAR_NAV_LABEL_INACTIVE =
 export const PAGE_V2_BODY = "flex flex-1 min-h-0";
 
 export const PAGE_V2_MAIN =
-  "flex-1 min-w-0 px-6 lg:px-8 py-6 lg:py-8 space-y-8 lg:space-y-10";
+  "flex-1 min-w-0 bg-[var(--edit-bg-primary)] border-t border-l border-[var(--edit-stone-200)] rounded-tl-[12px] p-6 lg:p-8 space-y-8 lg:space-y-10";
 
 export const NAVBAR_V2_ROOT =
   "bg-[var(--edit-stone-50)] flex items-center justify-between p-4";

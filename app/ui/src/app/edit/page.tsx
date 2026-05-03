@@ -161,7 +161,7 @@ export default function Page() {
   }, []);
 
   return (
-    <div className={`min-h-screen flex flex-col bg-white font-sans-manrope ${styles.root}`}>
+    <div className={`min-h-screen flex flex-col bg-[var(--edit-stone-50)] font-sans-manrope ${styles.root}`}>
       <OptimizingModal isOpen={isOptimizing} />
       <Navbar
         onImportSession={handleImportSession}

@@ -8,13 +8,13 @@ import { useState } from "react";
 import VehicleRow from "./VehicleRow";
 import VehicleDetailsOverlay from "./VehicleDetailsOverlay";
 import type { VehicleRow as VehicleRowType } from "../types/delivery";
-import { DESKTOP_VEHICLE_GRID_CLASS } from "../formStyles";
 import {
   NAVBAR_V2_BTN_OUTLINE,
   VEHICLE_INFO_CONTAINER,
   VEHICLE_INFO_DIVIDER,
   VEHICLE_INFO_HEADER_CELL,
   VEHICLE_INFO_HEADER_ROW,
+  VEHICLE_INFO_ROWS,
   VEHICLE_SECTION_BTN_GHOST,
   VEHICLE_SECTION_HEADER,
   VEHICLE_SECTION_HEADING,
@@ -65,10 +65,21 @@ export default function VehicleSection({
   outOfRegionVehicleIds,
 }: VehicleSectionProps) {
   const [isAddOverlayOpen, setIsAddOverlayOpen] = useState(false);
+  const [editingVehicle, setEditingVehicle] = useState<VehicleRowType | null>(null);
 
   const addEnabled = allVehiclesLocked || activeVehicleIsValid;
   const geocodeFailedSet = new Set(geocodeFailedVehicleIds);
   const outOfRegionSet = new Set(outOfRegionVehicleIds);
+
+  function saveExistingVehicle(updated: VehicleRowType) {
+    updateVehicle(updated.id, "name", updated.name);
+    updateVehicle(updated.id, "type", updated.type);
+    updateVehicle(updated.id, "capacity", updated.capacity);
+    updateVehicle(updated.id, "capacityUnit", updated.capacityUnit);
+    updateVehicle(updated.id, "available", updated.available);
+    updateVehicle(updated.id, "departureTime", updated.departureTime);
+    setEditingVehicle(null);
+  }
 
   return (
     <section>
@@ -101,7 +112,7 @@ export default function VehicleSection({
           <span className={VEHICLE_INFO_HEADER_CELL}>Departure time</span>
         </div>
         <hr className={VEHICLE_INFO_DIVIDER} />
-        <div className={`grid ${DESKTOP_VEHICLE_GRID_CLASS} gap-x-3 xl:gap-x-4 gap-y-3 items-center`}>
+        <div className={VEHICLE_INFO_ROWS}>
           {vehicles.map((v) => (
             <VehicleRow
               key={`vehicle-${v.id}`}
@@ -112,6 +123,7 @@ export default function VehicleSection({
               deleteVehicle={deleteVehicle}
               unlockVehicle={unlockVehicle}
               confirmVehicle={confirmVehicle}
+              onEditVehicle={setEditingVehicle}
               vehicleTouched={touchedIds.has(v.id)}
               geocodeFailed={geocodeFailedSet.has(v.id)}
               outOfRegionFailed={outOfRegionSet.has(v.id)}
@@ -142,6 +154,7 @@ export default function VehicleSection({
       {isAddOverlayOpen && (
         <VehicleDetailsOverlay
           vehicle={BLANK_VEHICLE}
+          mode="add"
           onClose={() => setIsAddOverlayOpen(false)}
           onSave={(updated) => {
             addVehicleWithDetails({
@@ -153,6 +166,20 @@ export default function VehicleSection({
               departureTime: updated.departureTime,
             });
             setIsAddOverlayOpen(false);
+          }}
+        />
+      )}
+
+      {editingVehicle && (
+        <VehicleDetailsOverlay
+          vehicle={editingVehicle}
+          mode="edit"
+          canDelete={vehicles.length > 1}
+          onClose={() => setEditingVehicle(null)}
+          onSave={saveExistingVehicle}
+          onDelete={() => {
+            deleteVehicle(editingVehicle.id);
+            setEditingVehicle(null);
           }}
         />
       )}

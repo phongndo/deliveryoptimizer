@@ -59,6 +59,30 @@ export const VEHICLE_INFO_HEADER_CELL = "shrink-0 w-[200px]";
 
 export const VEHICLE_INFO_DIVIDER = "border-t border-[var(--edit-stone-200)]";
 
+export const VEHICLE_INFO_ROWS =
+  "flex flex-col gap-3";
+
+export const VEHICLE_ROW_DESKTOP =
+  "flex w-fit max-w-full gap-4 items-center rounded-[4px] text-left cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--edit-teal-300)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--edit-bg-primary)]";
+
+export const VEHICLE_ROW_CELL =
+  "shrink-0 w-[200px] font-normal text-[16px] leading-[1.5] text-[var(--edit-text-primary)] truncate";
+
+export const VEHICLE_ROW_STATUS_CELL =
+  "shrink-0 w-[200px] h-[38px] flex items-center overflow-hidden";
+
+export const VEHICLE_ROW_STATUS_BADGE_AVAILABLE =
+  "bg-[var(--edit-container-success)] flex items-center overflow-hidden px-2 py-[7px] rounded-[4px]";
+
+export const VEHICLE_ROW_STATUS_BADGE_UNAVAILABLE =
+  "bg-[var(--edit-stone-50)] flex items-center overflow-hidden px-2 py-[7px] rounded-[4px]";
+
+export const VEHICLE_ROW_STATUS_TEXT_AVAILABLE =
+  "font-semibold text-[16px] leading-[22px] text-[var(--edit-text-success)] whitespace-nowrap";
+
+export const VEHICLE_ROW_STATUS_TEXT_UNAVAILABLE =
+  "font-semibold text-[16px] leading-[22px] text-[var(--edit-stone-600)] whitespace-nowrap";
+
 export const VEHICLE_SECTION_BTN_GHOST =
   "h-9 px-4 rounded-[80px] font-semibold text-[14px] leading-5 text-[var(--edit-text-primary)] whitespace-nowrap hover:bg-[var(--edit-tertiary-btn-hover)] active:bg-[var(--edit-tertiary-btn-pressed)] transition-colors cursor-pointer";
 
@@ -153,6 +177,9 @@ export const OVERLAY_FOOTER =
 
 export const OVERLAY_CANCEL_BTN =
   "h-9 px-4 rounded-[80px] font-semibold text-[14px] leading-5 text-[var(--edit-text-primary)] whitespace-nowrap hover:bg-[var(--edit-tertiary-btn-hover)] active:bg-[var(--edit-tertiary-btn-pressed)] transition-colors cursor-pointer";
+
+export const OVERLAY_DELETE_BTN =
+  "h-9 px-4 rounded-[80px] font-semibold text-[14px] leading-5 text-[var(--edit-error-border)] whitespace-nowrap hover:bg-[var(--edit-tertiary-btn-hover)] active:bg-[var(--edit-tertiary-btn-pressed)] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 
 export const OVERLAY_DONE_BTN =
   "h-9 px-4 rounded-[80px] bg-[var(--edit-btn-primary)] font-semibold text-[14px] leading-5 text-[var(--edit-text-primary)] whitespace-nowrap hover:[background:var(--edit-primary-btn-hover)] active:[background:var(--edit-primary-btn-pressed)] transition-colors cursor-pointer";

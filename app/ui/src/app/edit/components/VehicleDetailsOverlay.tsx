@@ -11,6 +11,7 @@ import {
   OVERLAY_DEPARTURE_INPUT,
   OVERLAY_DEPARTURE_WRAPPER,
   OVERLAY_DEPARTURE_WRAPPER_ERROR,
+  OVERLAY_DELETE_BTN,
   OVERLAY_DONE_BTN,
   OVERLAY_FIELD,
   OVERLAY_FOOTER,
@@ -78,14 +79,20 @@ function parseDepartureTime(time: string): { timeValue: string; meridiem: "am" |
 
 type VehicleDetailsOverlayProps = {
   vehicle: VehicleRowType;
+  mode?: "add" | "edit";
+  canDelete?: boolean;
   onClose: () => void;
   onSave: (updated: VehicleRowType) => void;
+  onDelete?: () => void;
 };
 
 export default function VehicleDetailsOverlay({
   vehicle,
+  mode = "add",
+  canDelete = false,
   onClose,
   onSave,
+  onDelete,
 }: VehicleDetailsOverlayProps) {
   const panelRef = useFocusTrap<HTMLDivElement>(true);
 
@@ -155,7 +162,7 @@ export default function VehicleDetailsOverlay({
           {/* Header */}
           <div className={OVERLAY_HEADER}>
             <h2 id="vehicle-overlay-title" className={OVERLAY_TITLE}>
-              Add vehicle details
+              {mode === "edit" ? "Edit vehicle details" : "Add vehicle details"}
             </h2>
             <button
               type="button"
@@ -327,6 +334,16 @@ export default function VehicleDetailsOverlay({
 
         {/* Footer */}
         <div className={OVERLAY_FOOTER}>
+          {onDelete && (
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={!canDelete}
+              className={OVERLAY_DELETE_BTN}
+            >
+              Delete
+            </button>
+          )}
           <button type="button" onClick={onClose} className={OVERLAY_CANCEL_BTN}>
             Cancel
           </button>

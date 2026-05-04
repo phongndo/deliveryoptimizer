@@ -334,16 +334,6 @@ export default function VehicleDetailsOverlay({
 
         {/* Footer */}
         <div className={OVERLAY_FOOTER}>
-          {onDelete && (
-            <button
-              type="button"
-              onClick={onDelete}
-              disabled={!canDelete}
-              className={OVERLAY_DELETE_BTN}
-            >
-              Delete
-            </button>
-          )}
           <button type="button" onClick={onClose} className={OVERLAY_CANCEL_BTN}>
             Cancel
           </button>

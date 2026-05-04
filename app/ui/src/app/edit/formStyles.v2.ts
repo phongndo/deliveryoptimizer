@@ -95,12 +95,6 @@ export const VEHICLE_ROW_ICON_BUTTON =
 export const VEHICLE_ROW_ICON =
   "absolute left-2 top-2 size-6";
 
-export const VEHICLE_ROW_EDIT_ICON =
-  "text-[var(--edit-icon-edit)]";
-
-export const VEHICLE_ROW_DELETE_ICON =
-  "text-[var(--edit-icon-trash)]";
-
 export const VEHICLE_SECTION_BTN_GHOST =
   "h-9 px-4 rounded-[80px] font-semibold text-[14px] leading-5 text-[var(--edit-text-primary)] whitespace-nowrap hover:bg-[var(--edit-tertiary-btn-hover)] active:bg-[var(--edit-tertiary-btn-pressed)] transition-colors cursor-pointer";
 

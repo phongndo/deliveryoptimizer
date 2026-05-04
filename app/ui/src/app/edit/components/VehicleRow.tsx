@@ -39,7 +39,12 @@ import {
 } from "../formStyles";
 import {
   VEHICLE_ROW_CELL,
+  VEHICLE_ROW_ACTIONS,
+  VEHICLE_ROW_DELETE_ICON,
   VEHICLE_ROW_DESKTOP,
+  VEHICLE_ROW_EDIT_ICON,
+  VEHICLE_ROW_ICON,
+  VEHICLE_ROW_ICON_BUTTON,
   VEHICLE_ROW_STATUS_BADGE_AVAILABLE,
   VEHICLE_ROW_STATUS_BADGE_UNAVAILABLE,
   VEHICLE_ROW_STATUS_CELL,
@@ -140,7 +145,6 @@ function AvailableSegmented({
 export default function VehicleRow({
   layout = "desktop",
   vehicle: v,
-  vehiclesCount,
   updateVehicle,
   deleteVehicle,
   unlockVehicle,
@@ -198,7 +202,6 @@ export default function VehicleRow({
             <button
               type="button"
               onClick={() => deleteVehicle(v.id)}
-              disabled={vehiclesCount <= 1}
               className={VEHICLE_PILL_HALF_DANGER}
             >
               Delete
@@ -295,7 +298,6 @@ export default function VehicleRow({
             <button
               type="button"
               onClick={() => deleteVehicle(v.id)}
-              disabled={vehiclesCount <= 1}
               className={VEHICLE_PILL_FULL_DANGER}
             >
               Delete
@@ -305,7 +307,6 @@ export default function VehicleRow({
           <button
             type="button"
             onClick={() => deleteVehicle(v.id)}
-            disabled={vehiclesCount <= 1}
             className={`${VEHICLE_PILL_FULL_DANGER} mt-2`}
           >
             Delete
@@ -321,12 +322,7 @@ export default function VehicleRow({
   const statusText = v.available ? VEHICLE_ROW_STATUS_TEXT_AVAILABLE : VEHICLE_ROW_STATUS_TEXT_UNAVAILABLE;
 
   return (
-    <button
-      type="button"
-      className={VEHICLE_ROW_DESKTOP}
-      onClick={() => onEditVehicle?.(v)}
-      aria-label={`Edit ${v.name || "vehicle"}`}
-    >
+    <div className={VEHICLE_ROW_DESKTOP}>
       <span className={VEHICLE_ROW_CELL}>{v.name}</span>
       <span className={VEHICLE_ROW_CELL}>{capitalize(v.type)}</span>
       <span className={VEHICLE_ROW_CELL}>{formatCapacity(v)}</span>
@@ -336,7 +332,41 @@ export default function VehicleRow({
         </span>
       </span>
       <span className={VEHICLE_ROW_CELL}>{v.departureTime}</span>
-    </button>
+      <div className={VEHICLE_ROW_ACTIONS}>
+        <button
+          type="button"
+          className={VEHICLE_ROW_ICON_BUTTON}
+          onClick={() => onEditVehicle?.(v)}
+          aria-label={`Edit ${v.name || "vehicle"}`}
+          title="Edit"
+        >
+          <svg
+            className={`${VEHICLE_ROW_ICON} ${VEHICLE_ROW_EDIT_ICON}`}
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            aria-hidden
+          >
+            <path d="M17.75 7.4 16.6 6.25 7.65 15.2v1.15H8.8L17.75 7.4Zm1.8-1.8a1.55 1.55 0 0 1 0 2.2l-9.9 9.9H6.3v-3.35l9.9-9.9a1.55 1.55 0 0 1 2.2 0l1.15 1.15ZM4 20h16v2H4v-2Z" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          className={VEHICLE_ROW_ICON_BUTTON}
+          onClick={() => deleteVehicle(v.id)}
+          aria-label={`Delete ${v.name || "vehicle"}`}
+          title="Delete"
+        >
+          <svg
+            className={`${VEHICLE_ROW_ICON} ${VEHICLE_ROW_DELETE_ICON}`}
+            viewBox="0 0 24 24"
+            fill="currentColor"
+            aria-hidden
+          >
+            <path d="M7 21q-.825 0-1.412-.587Q5 19.825 5 19V6H4V4h5V3h6v1h5v2h-1v13q0 .825-.588 1.413Q17.825 21 17 21H7ZM17 6H7v13h10V6ZM9 17h2V8H9v9Zm4 0h2V8h-2v9Z" />
+          </svg>
+        </button>
+      </div>
+    </div>
   );
 }
 

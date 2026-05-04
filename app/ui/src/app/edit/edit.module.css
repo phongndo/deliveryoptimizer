@@ -44,10 +44,12 @@
   --edit-tertiary-btn-pressed: #F6F5F2;
 
   /* ── Semantic status ─────────────────────────────────────────── */
-  --edit-container-success: #daf1db;
-  --edit-text-success:      #2a7e3b;
-  --edit-required-asterisk: #da1b0b;
-  --edit-error-border:      #da1b0b;
+  --edit-container-success: #DAF1DB;
+  --edit-text-success:      #2A7E3B;
+  --edit-required-asterisk: #DA1B0B;
+  --edit-error-border:      #DA1B0B;
+  --edit-icon-edit:      #3D3D3C;
+  --edit-icon-trash:       #DA1B0B;
 }
 
 /* ── Primary Button Hover and Pressed States Overlay ──────────────────────── */

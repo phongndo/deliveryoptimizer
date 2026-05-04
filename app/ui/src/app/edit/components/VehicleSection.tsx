@@ -110,6 +110,7 @@ export default function VehicleSection({
           <span className={VEHICLE_INFO_HEADER_CELL}>Capacity</span>
           <span className={VEHICLE_INFO_HEADER_CELL}>Status</span>
           <span className={VEHICLE_INFO_HEADER_CELL}>Departure time</span>
+          <span className="sr-only">Actions</span>
         </div>
         <hr className={VEHICLE_INFO_DIVIDER} />
         <div className={VEHICLE_INFO_ROWS}>
@@ -174,7 +175,7 @@ export default function VehicleSection({
         <VehicleDetailsOverlay
           vehicle={editingVehicle}
           mode="edit"
-          canDelete={vehicles.length > 1}
+          canDelete
           onClose={() => setEditingVehicle(null)}
           onSave={saveExistingVehicle}
           onDelete={() => {

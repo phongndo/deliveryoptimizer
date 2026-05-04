@@ -105,10 +105,8 @@ export function useVehicles() {
     []
   );
 
-  // Always keep at least one vehicle in the list.
   const deleteVehicle = useCallback((id: number) => {
     setVehicles((prev) => {
-      if (prev.length <= 1) return prev;
       return prev.filter((v) => v.id !== id);
     });
     setTouchedIds((t) => {

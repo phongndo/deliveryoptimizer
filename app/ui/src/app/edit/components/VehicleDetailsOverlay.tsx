@@ -89,7 +89,7 @@ type VehicleDetailsOverlayProps = {
 export default function VehicleDetailsOverlay({
   vehicle,
   mode = "add",
-  canDelete = false,
+  canDelete = true,
   onClose,
   onSave,
   onDelete,

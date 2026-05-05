@@ -74,13 +74,13 @@ export const VEHICLE_ROW_STATUS_CELL =
 export const VEHICLE_ROW_STATUS_BADGE_AVAILABLE =
   "bg-[var(--edit-container-success)] flex items-center overflow-hidden px-2 py-[7px] rounded-[4px]";
 
-export const VEHICLE_ROW_STATUS_BADGE_UNAVAILABLE =
+export const VEHICLE_ROW_STATUS_BADGE_IN_USE =
   "bg-[var(--edit-stone-50)] flex items-center overflow-hidden p-[8px] rounded-[4px]";
 
 export const VEHICLE_ROW_STATUS_TEXT_AVAILABLE =
   "font-semibold text-[16px] leading-[22px] text-[var(--edit-text-success)] whitespace-nowrap";
 
-export const VEHICLE_ROW_STATUS_TEXT_UNAVAILABLE =
+export const VEHICLE_ROW_STATUS_TEXT_IN_USE =
   "font-semibold text-[16px] leading-[22px] text-[var(--edit-text-secondary)] whitespace-nowrap";
 
 export const VEHICLE_ROW_ACTIONS =
@@ -157,13 +157,13 @@ export const OVERLAY_SELECT_PLACEHOLDER =
 export const OVERLAY_STATUS_BADGE_AVAILABLE =
   "bg-[var(--edit-container-success)] flex items-center overflow-hidden px-2 py-[7px] rounded-[4px] cursor-pointer select-none shrink-0";
 
-export const OVERLAY_STATUS_BADGE_UNAVAILABLE =
+export const OVERLAY_STATUS_BADGE_IN_USE =
   "bg-[var(--edit-stone-50)] flex items-center overflow-hidden p-[8px] rounded-[4px] cursor-pointer select-none shrink-0";
 
 export const OVERLAY_STATUS_BADGE_TEXT_AVAILABLE =
   "font-semibold text-[16px] leading-[22px] text-[var(--edit-text-success)] whitespace-nowrap";
 
-export const OVERLAY_STATUS_BADGE_TEXT_UNAVAILABLE =
+export const OVERLAY_STATUS_BADGE_TEXT_IN_USE =
   "font-semibold text-[16px] leading-[22px] text-[var(--edit-text-secondary)] whitespace-nowrap";
 
 export const OVERLAY_STATUS_HINT =

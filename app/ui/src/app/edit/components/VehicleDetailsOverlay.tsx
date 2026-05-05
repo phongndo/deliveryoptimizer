@@ -96,7 +96,6 @@ type VehicleDetailsOverlayProps = {
   mode?: "add" | "edit";
   onClose: () => void;
   onSave: (updated: VehicleRowType) => void;
-  onDelete?: () => void;
 };
 
 export default function VehicleDetailsOverlay({
@@ -104,7 +103,6 @@ export default function VehicleDetailsOverlay({
   mode = "add",
   onClose,
   onSave,
-  onDelete,
 }: VehicleDetailsOverlayProps) {
   const panelRef = useFocusTrap<HTMLDivElement>(true);
 

@@ -127,6 +127,9 @@ export const OVERLAY_ROW =
 export const OVERLAY_FIELD =
   "flex flex-1 flex-col gap-[6px] items-start min-w-0";
 
+export const OVERLAY_FULL_FIELD =
+  "flex flex-col gap-[6px] items-start w-full";
+
 export const OVERLAY_LABEL =
   "font-normal text-[16px] leading-normal text-[var(--edit-text-primary)] w-full";
 

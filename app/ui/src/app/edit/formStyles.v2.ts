@@ -146,7 +146,7 @@ export const OVERLAY_SELECT_WRAPPER =
   "border border-[var(--edit-stone-200)] flex h-11 items-center justify-between px-3 rounded-[6px] w-full relative overflow-hidden cursor-pointer";
 
 export const OVERLAY_SELECT =
-  "appearance-none absolute inset-0 w-full h-full opacity-0 cursor-pointer text-[var(--edit-text-primary)]";
+  "appearance-none absolute inset-0 w-full h-full opacity-0 cursor-pointer text-[var(--edit-text-primary)] pl-3 py-3";
 
 export const OVERLAY_SELECT_VALUE =
   "font-normal text-[16px] leading-6 text-[var(--edit-text-primary)] pointer-events-none flex-1 truncate";

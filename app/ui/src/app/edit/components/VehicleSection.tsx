@@ -182,13 +182,8 @@ export default function VehicleSection({
         <VehicleDetailsOverlay
           vehicle={editingVehicle}
           mode="edit"
-          canDelete
           onClose={() => setEditingVehicle(null)}
           onSave={saveExistingVehicle}
-          onDelete={() => {
-            deleteVehicle(editingVehicle.id);
-            setEditingVehicle(null);
-          }}
         />
       )}
 

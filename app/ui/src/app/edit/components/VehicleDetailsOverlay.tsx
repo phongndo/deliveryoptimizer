@@ -33,8 +33,8 @@ import {
   OVERLAY_SELECT_WRAPPER_ERROR,
   OVERLAY_STATUS_BADGE_AVAILABLE,
   OVERLAY_STATUS_BADGE_TEXT_AVAILABLE,
-  OVERLAY_STATUS_BADGE_TEXT_UNAVAILABLE,
-  OVERLAY_STATUS_BADGE_UNAVAILABLE,
+  OVERLAY_STATUS_BADGE_TEXT_IN_USE,
+  OVERLAY_STATUS_BADGE_IN_USE,
   OVERLAY_STATUS_HINT,
   OVERLAY_SCROLL_BODY,
   OVERLAY_TITLE,
@@ -295,11 +295,11 @@ export default function VehicleDetailsOverlay({
                   <button
                     type="button"
                     onClick={() => setAvailable((prev) => !prev)}
-                    className={available ? OVERLAY_STATUS_BADGE_AVAILABLE : OVERLAY_STATUS_BADGE_UNAVAILABLE}
+                    className={available ? OVERLAY_STATUS_BADGE_AVAILABLE : OVERLAY_STATUS_BADGE_IN_USE}
                     aria-pressed={available}
                     aria-label="Toggle availability"
                   >
-                    <span className={available ? OVERLAY_STATUS_BADGE_TEXT_AVAILABLE : OVERLAY_STATUS_BADGE_TEXT_UNAVAILABLE}>
+                    <span className={available ? OVERLAY_STATUS_BADGE_TEXT_AVAILABLE : OVERLAY_STATUS_BADGE_TEXT_IN_USE}>
                       {available ? "Available" : "In use"}
                     </span>
                   </button>

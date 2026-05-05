@@ -28,6 +28,7 @@ import {
   mapOptimizeRequestToEditState,
 } from "./utils/sessionMapper";
 import { useRouter } from "next/navigation";
+import VehicleStartLocationOverlay, { type StartLocationAddress } from "./components/VehicleStartLocationOverlay";
 
 type StoredUploadFile = {
   name: string;
@@ -39,6 +40,7 @@ export default function Page() {
   const vehicleState = useVehicles();
   const addressState = useAddresses();
   const [sessionError, setSessionError] = useState<string | null>(null);
+  const [showStartLocationOverlay, setShowStartLocationOverlay] = useState(false);
   const {
     optimize,
     isOptimizing,
@@ -160,13 +162,28 @@ export default function Page() {
     setSessionError(null);
   }, []);
 
+  const handleStartLocationSave = useCallback((addr: StartLocationAddress) => {
+    const parts = [addr.line1];
+    if (addr.line2.trim()) parts.push(addr.line2);
+    parts.push(addr.city, `${addr.state} ${addr.zipCode}`, addr.country);
+    const formattedAddress = parts.join(", ");
+    setShowStartLocationOverlay(false);
+    void optimize(formattedAddress);
+  }, [optimize]);
+
   return (
     <div className={`min-h-screen flex flex-col bg-[var(--edit-stone-50)] font-sans-manrope ${styles.root}`}>
       <OptimizingModal isOpen={isOptimizing} />
+      {showStartLocationOverlay && (
+        <VehicleStartLocationOverlay
+          onClose={() => setShowStartLocationOverlay(false)}
+          onSave={handleStartLocationSave}
+        />
+      )}
       <Navbar
         onImportSession={handleImportSession}
         onExportSession={handleExportSession}
-        onOptimize={optimize}
+        onOptimize={() => setShowStartLocationOverlay(true)}
         isOptimizing={isOptimizing}
         error={sessionError ?? optimizeError ?? csvError}
         onClearError={() => { clearSessionError(); clearOptimizeError(); clearCsvError(); }}

@@ -8,7 +8,6 @@ import type { VehicleRow } from "../types/delivery";
 function isVehicleValid(v: VehicleRow): boolean {
   return (
     v.name.trim() !== "" &&
-    (v.startLocation ?? "").trim() !== "" &&
     v.type !== "" &&
     v.capacityUnit !== "" &&
     v.capacity > 0 &&
@@ -77,8 +76,6 @@ export function useVehicles() {
     });
   }, []);
 
-  // Creates a pre-filled, immediately-locked vehicle from the overlay form.
-  // startLocation is a temporary placeholder until the shared depot flow is built.
   const addVehicleWithDetails = useCallback(
     (details: Pick<VehicleRow, "name" | "type" | "capacity" | "capacityUnit" | "available" | "departureTime">) => {
       setVehicles((prev) => {
@@ -90,7 +87,7 @@ export function useVehicles() {
             locked: true,
             editingExisting: false,
             name: details.name,
-            startLocation: "1600 Pennsylvania Ave",
+            startLocation: "",
             cachedLocation: undefined,
             type: details.type,
             capacityUnit: details.capacityUnit,

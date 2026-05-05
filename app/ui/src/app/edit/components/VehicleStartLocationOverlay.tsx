@@ -25,6 +25,7 @@ import {
   OVERLAY_SELECT_VALUE,
   OVERLAY_SELECT_WRAPPER,
   OVERLAY_SELECT_WRAPPER_ERROR,
+  OVERLAY_SCROLL_BODY,
   OVERLAY_TITLE,
 } from "../formStyles.v2";
 
@@ -148,7 +149,7 @@ export default function VehicleStartLocationOverlay({
           </div>
 
           {/* Form fields */}
-          <div className={OVERLAY_BODY}>
+          <div className={OVERLAY_SCROLL_BODY}>
             {/* Address line 1 — full width */}
             <div className={OVERLAY_FULL_FIELD}>
               <label htmlFor="start-loc-line1" className={OVERLAY_LABEL}>

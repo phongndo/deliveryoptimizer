@@ -37,6 +37,7 @@ import {
   OVERLAY_STATUS_BADGE_TEXT_UNAVAILABLE,
   OVERLAY_STATUS_BADGE_UNAVAILABLE,
   OVERLAY_STATUS_HINT,
+  OVERLAY_SCROLL_BODY,
   OVERLAY_TITLE,
 } from "../formStyles.v2";
 
@@ -193,7 +194,7 @@ export default function VehicleDetailsOverlay({
           </div>
 
           {/* Form fields */}
-          <div className={OVERLAY_BODY}>
+          <div className={OVERLAY_SCROLL_BODY}>
             {/* Row 1: Name + Type */}
             <div className={OVERLAY_ROW}>
               <div className={OVERLAY_FIELD}>

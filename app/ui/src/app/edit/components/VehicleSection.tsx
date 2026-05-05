@@ -7,6 +7,7 @@
 import { useState } from "react";
 import VehicleRow from "./VehicleRow";
 import VehicleDetailsOverlay from "./VehicleDetailsOverlay";
+import ConfirmVehicleDeletionOverlay from "./ConfirmVehicleDeletionOverlay";
 import type { VehicleRow as VehicleRowType } from "../types/delivery";
 import {
   NAVBAR_V2_BTN_OUTLINE,
@@ -66,6 +67,12 @@ export default function VehicleSection({
 }: VehicleSectionProps) {
   const [isAddOverlayOpen, setIsAddOverlayOpen] = useState(false);
   const [editingVehicle, setEditingVehicle] = useState<VehicleRowType | null>(null);
+  const [vehicleToDelete, setVehicleToDelete] = useState<VehicleRowType | null>(null);
+
+  function handleDeleteRequest(id: number) {
+    const vehicle = vehicles.find((v) => v.id === id);
+    if (vehicle) setVehicleToDelete(vehicle);
+  }
 
   const addEnabled = allVehiclesLocked || activeVehicleIsValid;
   const geocodeFailedSet = new Set(geocodeFailedVehicleIds);
@@ -121,7 +128,7 @@ export default function VehicleSection({
               vehicle={v}
               vehiclesCount={vehicles.length}
               updateVehicle={updateVehicle}
-              deleteVehicle={deleteVehicle}
+              deleteVehicle={handleDeleteRequest}
               unlockVehicle={unlockVehicle}
               confirmVehicle={confirmVehicle}
               onEditVehicle={setEditingVehicle}
@@ -142,7 +149,7 @@ export default function VehicleSection({
             vehicle={v}
             vehiclesCount={vehicles.length}
             updateVehicle={updateVehicle}
-            deleteVehicle={deleteVehicle}
+            deleteVehicle={handleDeleteRequest}
             unlockVehicle={unlockVehicle}
             confirmVehicle={confirmVehicle}
             vehicleTouched={touchedIds.has(v.id)}
@@ -181,6 +188,17 @@ export default function VehicleSection({
           onDelete={() => {
             deleteVehicle(editingVehicle.id);
             setEditingVehicle(null);
+          }}
+        />
+      )}
+
+      {vehicleToDelete && (
+        <ConfirmVehicleDeletionOverlay
+          vehicleName={vehicleToDelete.name}
+          onClose={() => setVehicleToDelete(null)}
+          onConfirm={() => {
+            deleteVehicle(vehicleToDelete.id);
+            setVehicleToDelete(null);
           }}
         />
       )}

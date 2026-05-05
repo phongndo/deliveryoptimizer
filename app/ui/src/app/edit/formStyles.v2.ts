@@ -107,10 +107,13 @@ export const OVERLAY_BACKDROP =
   "fixed inset-0 z-50 flex items-center justify-center bg-black/40";
 
 export const OVERLAY_PANEL =
-  "bg-[var(--edit-bg-primary)] flex flex-col gap-[14px] items-end overflow-hidden p-6 rounded-[6px] w-full max-w-[480px] mx-4 shadow-lg";
+  "bg-[var(--edit-bg-primary)] flex flex-col gap-[14px] items-end overflow-hidden p-6 rounded-[6px] w-full max-w-[480px] mx-4 shadow-lg max-h-[90dvh]";
 
 export const OVERLAY_BODY =
-  "flex flex-col gap-6 items-start w-full";
+  "flex flex-col gap-6 items-start w-full flex-1 min-h-0";
+
+export const OVERLAY_SCROLL_BODY =
+  "flex flex-col gap-6 items-start w-full overflow-y-auto min-h-0 flex-1";
 
 export const OVERLAY_HEADER =
   "flex items-center justify-between w-full";

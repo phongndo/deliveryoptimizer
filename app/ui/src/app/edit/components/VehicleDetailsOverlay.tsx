@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { VehicleRow as VehicleRowType, VehicleType, CapacityUnit } from "../types/delivery";
 import { useFocusTrap } from "../hooks/useFocusTrap";
+import OverlayFieldError from "./OverlayFieldError";
 import {
   OVERLAY_BACKDROP,
   OVERLAY_BODY,
@@ -71,6 +72,17 @@ const CHEVRON_DOWN_ICON = (
   </svg>
 );
 
+function isValidTime(h: string, m: string): boolean {
+  const hNum = parseInt(h, 10);
+  const mNum = parseInt(m, 10);
+  return (
+    h.trim() !== "" &&
+    m.trim() !== "" &&
+    hNum >= 1 && hNum <= 12 &&
+    mNum >= 0 && mNum <= 59
+  );
+}
+
 function parseDepartureTime(time: string): { hours: string; minutes: string; meridiem: "am" | "pm" } {
   if (!time.trim()) return { hours: "", minutes: "", meridiem: "am" };
   const isPm = /pm/i.test(time);
@@ -117,7 +129,7 @@ export default function VehicleDetailsOverlay({
   const typeError     = submitted && !type;
   const capacityError = submitted && capacity <= 0;
   const unitError     = submitted && !capacityUnit;
-  const departureError = submitted && (!hours.trim() || !minutes.trim());
+  const departureError = submitted && !isValidTime(hours, minutes);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -129,7 +141,7 @@ export default function VehicleDetailsOverlay({
 
   function handleSave() {
     setSubmitted(true);
-    if (!name.trim() || !type || capacity <= 0 || !capacityUnit || !hours.trim() || !minutes.trim()) return;
+    if (!name.trim() || !type || capacity <= 0 || !capacityUnit || !isValidTime(hours, minutes)) return;
     const departureTime = `${hours}:${minutes} ${meridiem.toUpperCase()}`;
     onSave({ ...vehicle, name, type, capacity, capacityUnit, available, departureTime });
   }
@@ -197,6 +209,7 @@ export default function VehicleDetailsOverlay({
                   aria-required="true"
                   aria-invalid={nameError}
                 />
+                {nameError && <OverlayFieldError message="Enter a name" />}
               </div>
 
               <div className={OVERLAY_FIELD}>
@@ -224,6 +237,7 @@ export default function VehicleDetailsOverlay({
                     <option value="bicycle">Bicycle</option>
                   </select>
                 </div>
+                {typeError && <OverlayFieldError message="Enter a vehicle type" />}
               </div>
             </div>
 
@@ -244,6 +258,7 @@ export default function VehicleDetailsOverlay({
                   aria-required="true"
                   aria-invalid={capacityError}
                 />
+                {capacityError && <OverlayFieldError message="Enter capacity > 0" />}
               </div>
 
               <div className={OVERLAY_FIELD}>
@@ -272,6 +287,7 @@ export default function VehicleDetailsOverlay({
                     <option value="cubic_feet">Cubic Feet</option>
                   </select>
                 </div>
+                {unitError && <OverlayFieldError message="Enter a unit type" />}
               </div>
             </div>
 
@@ -360,6 +376,7 @@ export default function VehicleDetailsOverlay({
                     </button>
                   </div>
                 </div>
+                {departureError && <OverlayFieldError message="Enter a valid time" />}
               </div>
             </div>
           </div>

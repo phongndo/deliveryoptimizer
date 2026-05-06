@@ -10,7 +10,6 @@
  * and can be referenced in formStyles.v2.ts as Tailwind arbitrary values:
  *   bg-[var(--edit-page-bg)]
  *   text-[var(--edit-foreground)]
- *   border-[var(--edit-border)]
  *   etc.
  */
 

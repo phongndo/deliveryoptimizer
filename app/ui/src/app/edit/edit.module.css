@@ -31,6 +31,7 @@
   /* ── Nav ─────────────────────────────────────────────────────── */
   --edit-container-active: #D5F2E8;
   --edit-text-primary:     #272725;
+  --edit-text-temporary: #0d2d23; /* Temporary text color for the optimize button */
   --edit-btn-primary:      #39AC8F;
 
   /* ── Button Hover States ──────────────────────────────────────────────────── */

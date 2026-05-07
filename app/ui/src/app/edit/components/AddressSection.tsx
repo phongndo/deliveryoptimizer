@@ -8,10 +8,6 @@ import { useRef } from "react";
 import AddressCard from "./AddressCard";
 import type { AddressCard as AddressCardType } from "../types/delivery";
 import {
-  ADDRESS_ADD_PILL_DESKTOP_DISABLED,
-  ADDRESS_ADD_PILL_DESKTOP_ENABLED,
-  ADDRESS_ADD_PILL_MOBILE_DISABLED,
-  ADDRESS_ADD_PILL_MOBILE_ENABLED,
   ADDRESS_EMPTY_STATE,
   ADDRESS_LIST_WRAP,
   ADDRESS_TOOLBAR_DESKTOP,
@@ -22,6 +18,10 @@ import {
   ADDRESS_SECTION_HEADER,
   ADDRESS_SECTION_HEADING,
   ADDRESS_SECTION_SUBHEADING,
+  ADDRESS_BTN_V2_DESKTOP_ENABLED,
+  ADDRESS_BTN_V2_DESKTOP_DISABLED,
+  ADDRESS_BTN_V2_MOBILE_ENABLED,
+  ADDRESS_BTN_V2_MOBILE_DISABLED,
 } from "../formStyles.v2";
 
 type AddressSectionProps = {
@@ -87,14 +87,14 @@ export default function AddressSection({
           type="button"
           disabled={!addEnabled}
           onClick={addAddress}
-          className={addEnabled ? ADDRESS_ADD_PILL_MOBILE_ENABLED : ADDRESS_ADD_PILL_MOBILE_DISABLED}
+          className={addEnabled ? ADDRESS_BTN_V2_MOBILE_ENABLED : ADDRESS_BTN_V2_MOBILE_DISABLED}
         >
-          Add new address
+          Add address
         </button>
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className={ADDRESS_ADD_PILL_MOBILE_ENABLED}
+          className={ADDRESS_BTN_V2_MOBILE_ENABLED}
         >
           Import
         </button>
@@ -108,7 +108,7 @@ export default function AddressSection({
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className={ADDRESS_ADD_PILL_DESKTOP_ENABLED}
+          className={ADDRESS_BTN_V2_DESKTOP_ENABLED}
         >
           Import
         </button>
@@ -116,9 +116,9 @@ export default function AddressSection({
           type="button"
           disabled={!addEnabled}
           onClick={addAddress}
-          className={addEnabled ? ADDRESS_ADD_PILL_DESKTOP_ENABLED : ADDRESS_ADD_PILL_DESKTOP_DISABLED}
+          className={addEnabled ? ADDRESS_BTN_V2_DESKTOP_ENABLED : ADDRESS_BTN_V2_DESKTOP_DISABLED}
         >
-          Add new address
+          Add address
         </button>
       </div>
 

@@ -197,17 +197,7 @@ export default function VehicleSection({
           }}
         />
       )}
-
-      {vehicleToDelete && (
-        <ConfirmVehicleDeletionOverlay
-          vehicleName={vehicleToDelete.name}
-          onClose={() => setVehicleToDelete(null)}
-          onConfirm={() => {
-            deleteVehicle(vehicleToDelete.id);
-            setVehicleToDelete(null);
-          }}
-        />
-      )}
+      
     </section>
   );
 }

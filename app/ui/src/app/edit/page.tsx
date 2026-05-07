@@ -15,6 +15,7 @@ import { PAGE_V2_BODY, PAGE_V2_MAIN } from "./formStyles.v2";
 import VehicleSection from "./components/VehicleSection";
 import AddressSection from "./components/AddressSection";
 import AddressPagination from "./components/AddressPagination";
+import EditPageFooter from "./components/EditPageFooter";
 import { useVehicles } from "./hooks/useVehicles";
 import { useAddresses } from "./hooks/useAddresses";
 import { useOptimize } from "./hooks/useOptimize";
@@ -197,6 +198,7 @@ export default function Page() {
           <VehicleSection {...vehicleState} geocodeFailedVehicleIds={geocodeFailedVehicleIds} outOfRegionVehicleIds={outOfRegionVehicleIds} />
           <AddressSection {...addressState} geocodeFailedIds={geocodeFailedAddressIds} outOfRegionIds={outOfRegionAddressIds} onCSVUpload={handleCSVUpload} />
           <AddressPagination {...addressState} />
+          <EditPageFooter />
         </main>
       </div>
     </div>

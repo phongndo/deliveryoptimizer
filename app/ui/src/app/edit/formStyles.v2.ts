@@ -246,3 +246,14 @@ export const OVERLAY_FIELD_ERROR_CONTAINER =
 
 export const OVERLAY_FIELD_ERROR_TEXT =
   "font-normal text-[16px] leading-[1.5] text-[var(--edit-error-border)]";
+
+// ── Page Footer ───────────────────────────────────────────────────────────────
+
+export const FOOTER_ROOT =
+  "flex items-center justify-between px-4 py-3";
+
+export const FOOTER_LOGO =
+  "shrink-0 w-[25.326px] h-[28px] [aspect-ratio:25.33/28] [background:var(--edit-footer-logo-bg)]";
+
+export const FOOTER_TEXT =
+  "font-normal text-[16px] leading-[1.5] text-[var(--edit-text-primary)] whitespace-nowrap";

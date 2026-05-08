@@ -40,6 +40,8 @@ export default function Page() {
   const vehicleState = useVehicles();
   const addressState = useAddresses();
   const [sessionError, setSessionError] = useState<string | null>(null);
+  const { importVehicles } = vehicleState;
+  const { importAddresses } = addressState;
   const {
     optimize,
     isOptimizing,
@@ -79,8 +81,8 @@ export default function Page() {
 
           if (cancelled) return;
 
-          vehicleState.importVehicles(importedState.vehicles);
-          addressState.importAddresses(importedState.addresses);
+          importVehicles(importedState.vehicles);
+          importAddresses(importedState.addresses);
           sessionStorage.removeItem("savePointFile");
           return;
         } catch (error) {
@@ -110,7 +112,7 @@ export default function Page() {
 
         if (cancelled) return;
 
-        addressState.importAddresses(reindexAddresses(importedAddresses));
+        importAddresses(reindexAddresses(importedAddresses));
         sessionStorage.removeItem("addressFiles");
       } catch (error) {
         if (!cancelled) {
@@ -129,8 +131,8 @@ export default function Page() {
       cancelled = true;
     };
   }, [
-    addressState.importAddresses,
-    vehicleState.importVehicles,
+    importVehicles,
+    importAddresses,
   ]);
 
   const handleImportSession = useCallback(() => {

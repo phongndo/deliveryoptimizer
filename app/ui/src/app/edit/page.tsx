@@ -58,6 +58,8 @@ export default function Page() {
   const { handleCSVUpload, csvError, clearCsvError } = useCSVUpload({
     importAddresses: addressState.importAddresses,
   });
+  const { importAddresses } = addressState;
+  const { importVehicles } = vehicleState;
 
   useEffect(() => {
     let cancelled = false;
@@ -76,8 +78,8 @@ export default function Page() {
 
           if (cancelled) return;
 
-          vehicleState.importVehicles(importedState.vehicles);
-          addressState.importAddresses(importedState.addresses);
+          importVehicles(importedState.vehicles);
+          importAddresses(importedState.addresses);
           sessionStorage.removeItem("savePointFile");
           return;
         } catch (error) {
@@ -107,7 +109,7 @@ export default function Page() {
 
         if (cancelled) return;
 
-        addressState.importAddresses(reindexAddresses(importedAddresses));
+        importAddresses(reindexAddresses(importedAddresses));
         sessionStorage.removeItem("addressFiles");
       } catch (error) {
         if (!cancelled) {
@@ -126,8 +128,8 @@ export default function Page() {
       cancelled = true;
     };
   }, [
-    addressState.importAddresses,
-    vehicleState.importVehicles,
+    importAddresses,
+    importVehicles,
   ]);
 
   const handleImportSession = useCallback(() => {

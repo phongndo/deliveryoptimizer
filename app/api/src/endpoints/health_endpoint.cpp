@@ -12,6 +12,7 @@
 #include <string_view>
 #include <unistd.h>
 #include <utility>
+#include <vector>
 
 namespace {
 
@@ -104,31 +105,38 @@ struct OsrmProbeResult {
 }
 
 [[nodiscard]] drogon::HttpClientPtr GetOsrmHttpClient() {
-  static drogon::HttpClientPtr client = drogon::HttpClient::newHttpClient(
-      deliveryoptimizer::api::ResolveNormalizedUrlEnvOrDefault("OSRM_URL", kDefaultOsrmUrl));
-  return client;
+  static const auto* client = new drogon::HttpClientPtr{drogon::HttpClient::newHttpClient(
+      deliveryoptimizer::api::ResolveNormalizedUrlEnvOrDefault("OSRM_URL", kDefaultOsrmUrl))};
+  return *client;
 }
+
+using OsrmProbeWaiter = std::function<void(const OsrmProbeResult&)>;
 
 struct OsrmProbeCache {
   std::mutex mutex;
   std::optional<OsrmProbeResult> cached_result;
   std::chrono::steady_clock::time_point cached_at;
+  bool probe_in_flight{false};
+  std::vector<OsrmProbeWaiter> waiters;
+};
+
+struct OsrmProbeDispatch {
+  std::optional<OsrmProbeResult> cached_result;
+  bool should_start_probe{false};
 };
 
 OsrmProbeCache& GetOsrmProbeCache() {
-  static OsrmProbeCache cache;
-  return cache;
+  static auto* cache = new OsrmProbeCache;
+  return *cache;
 }
 
-std::optional<OsrmProbeResult> GetCachedOsrmProbe() {
-  auto& cache = GetOsrmProbeCache();
-
-  std::lock_guard<std::mutex> lock(cache.mutex);
+[[nodiscard]] std::optional<OsrmProbeResult>
+ReadFreshCachedOsrmProbe(const OsrmProbeCache& cache,
+                         const std::chrono::steady_clock::time_point now) {
   if (!cache.cached_result.has_value()) {
     return std::nullopt;
   }
 
-  const auto now = std::chrono::steady_clock::now();
   if (now - cache.cached_at > kOsrmProbeCacheTtl) {
     return std::nullopt;
   }
@@ -136,12 +144,53 @@ std::optional<OsrmProbeResult> GetCachedOsrmProbe() {
   return cache.cached_result;
 }
 
-void CacheOsrmProbe(const OsrmProbeResult& result) {
+[[nodiscard]] OsrmProbeDispatch AddOsrmProbeWaiter(OsrmProbeWaiter waiter) {
   auto& cache = GetOsrmProbeCache();
 
   std::lock_guard<std::mutex> lock(cache.mutex);
+  if (auto cached_result = ReadFreshCachedOsrmProbe(cache, std::chrono::steady_clock::now())) {
+    return OsrmProbeDispatch{.cached_result = std::move(cached_result)};
+  }
+
+  cache.waiters.push_back(std::move(waiter));
+  if (cache.probe_in_flight) {
+    return OsrmProbeDispatch{};
+  }
+
+  cache.probe_in_flight = true;
+  return OsrmProbeDispatch{.cached_result = std::nullopt, .should_start_probe = true};
+}
+
+[[nodiscard]] std::vector<OsrmProbeWaiter>
+CacheOsrmProbeAndTakeWaiters(const OsrmProbeResult& result) {
+  auto& cache = GetOsrmProbeCache();
+
+  std::vector<OsrmProbeWaiter> waiters;
+  std::lock_guard<std::mutex> lock(cache.mutex);
   cache.cached_result = result;
   cache.cached_at = std::chrono::steady_clock::now();
+  cache.probe_in_flight = false;
+  waiters.swap(cache.waiters);
+  return waiters;
+}
+
+void StartOsrmProbe() {
+  auto osrm_client = GetOsrmHttpClient();
+  auto osrm_probe_request = drogon::HttpRequest::newHttpRequest();
+  osrm_probe_request->setMethod(drogon::Get);
+  osrm_probe_request->setPath(std::string{kOsrmProbePath});
+
+  osrm_client->sendRequest(
+      osrm_probe_request,
+      [osrm_client = std::move(osrm_client)](const drogon::ReqResult result,
+                                             const drogon::HttpResponsePtr& response) mutable {
+        (void)osrm_client;
+        const OsrmProbeResult osrm_probe = EvaluateOsrmProbe(result, response);
+        for (auto& waiter : CacheOsrmProbeAndTakeWaiters(osrm_probe)) {
+          waiter(osrm_probe);
+        }
+      },
+      kOsrmProbeTimeoutSeconds);
 }
 
 } // namespace
@@ -156,29 +205,23 @@ void RegisterHealthEndpoint(drogon::HttpAppFramework& app,
                      const drogon::HttpRequestPtr& /*request*/,
                      std::function<void(const drogon::HttpResponsePtr&)>&& callback) {
         const bool vroom_ready = IsVroomBinaryReady();
-        if (const auto cached_probe = GetCachedOsrmProbe()) {
-          std::move(callback)(
-              BuildHealthResponse(vroom_ready, *cached_probe, observability, extension));
+        auto response_callback =
+            std::make_shared<std::function<void(const drogon::HttpResponsePtr&)>>(
+                std::move(callback));
+        auto respond = [vroom_ready, observability = observability, extension = extension,
+                        response_callback](const OsrmProbeResult& osrm_probe) {
+          (*response_callback)(
+              BuildHealthResponse(vroom_ready, osrm_probe, observability, extension));
+        };
+        const OsrmProbeDispatch dispatch = AddOsrmProbeWaiter(respond);
+        if (dispatch.cached_result.has_value()) {
+          respond(*dispatch.cached_result);
           return;
         }
 
-        auto osrm_client = GetOsrmHttpClient();
-        auto osrm_probe_request = drogon::HttpRequest::newHttpRequest();
-        osrm_probe_request->setMethod(drogon::Get);
-        osrm_probe_request->setPath(std::string{kOsrmProbePath});
-
-        osrm_client->sendRequest(
-            osrm_probe_request,
-            [osrm_client = std::move(osrm_client), vroom_ready, observability = observability,
-             extension = extension, callback = std::move(callback)](
-                const drogon::ReqResult result, const drogon::HttpResponsePtr& response) mutable {
-              (void)osrm_client;
-              const OsrmProbeResult osrm_probe = EvaluateOsrmProbe(result, response);
-              CacheOsrmProbe(osrm_probe);
-              std::move(callback)(
-                  BuildHealthResponse(vroom_ready, osrm_probe, observability, extension));
-            },
-            kOsrmProbeTimeoutSeconds);
+        if (dispatch.should_start_probe) {
+          StartOsrmProbe();
+        }
       });
 }
 

@@ -308,6 +308,25 @@ deliveryoptimizer_set_local_http_test_port(
   26000
 )
 
+add_test(
+  NAME DeliveryOptimizerApiContractTest.HealthCoalescesColdOsrmProbe
+  COMMAND "${BASH_PROGRAM}"
+          "${CMAKE_CURRENT_SOURCE_DIR}/integration/http_server/health_coalesces_cold_osrm_probe_test.sh"
+          "$<TARGET_FILE:deliveryoptimizer_api>" "${PYTHON3_PROGRAM}" "${CURL_PROGRAM}"
+)
+set_tests_properties(
+  DeliveryOptimizerApiContractTest.HealthCoalescesColdOsrmProbe
+  PROPERTIES
+    TIMEOUT 30
+    LABELS "${DELIVERYOPTIMIZER_LOCAL_API_REGRESSION_LABELS}"
+)
+deliveryoptimizer_resolve_local_http_test_port(health_coalesce_test_port 36500)
+deliveryoptimizer_resolve_local_http_test_port(health_coalesce_stub_port 53500)
+deliveryoptimizer_set_local_http_test_environment(
+  DeliveryOptimizerApiContractTest.HealthCoalescesColdOsrmProbe
+  "DELIVERYOPTIMIZER_TEST_PORT=${health_coalesce_test_port};DELIVERYOPTIMIZER_OSRM_STUB_PORT=${health_coalesce_stub_port}"
+)
+
 deliveryoptimizer_add_local_http_test(
   DeliveryOptimizerApiContractTest.DeliveriesOptimizeMissingServiceDefaultsTo300
   deliveries_optimize_missing_service_defaults_to_300_test.sh

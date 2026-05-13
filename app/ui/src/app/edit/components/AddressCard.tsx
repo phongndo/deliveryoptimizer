@@ -109,13 +109,13 @@ function StepperInput({
         <button type="button" onClick={onIncrement} aria-label={`Increase ${ariaLabel}`} className="cursor-pointer focus:outline-none">
           <svg viewBox="0 0 24 12" width="24" height="12">
             <path fill="none" className="stroke-[var(--edit-stone-200)]" d="M6 0.5H18C21.0376 0.5 23.5 2.96243 23.5 6V11.5H0.5V6C0.5 2.96243 2.96243 0.5 6 0.5Z" />
-            <path className="fill-[var(--edit-icon-edit)]" d="M12 5.39189L8.93333 8.5L8 7.55405L12 3.5L16 7.55405L15.0667 8.5L12 5.39189Z" />
+            <path className="fill-[var(--edit-primary-icon)]" d="M12 5.39189L8.93333 8.5L8 7.55405L12 3.5L16 7.55405L15.0667 8.5L12 5.39189Z" />
           </svg>
         </button>
         <button type="button" onClick={onDecrement} aria-label={`Decrease ${ariaLabel}`} className="cursor-pointer focus:outline-none">
           <svg viewBox="0 0 24 12" width="24" height="12">
             <path fill="none" className="stroke-[var(--edit-stone-200)]" d="M18 11.5H6C2.96243 11.5 0.5 9.03757 0.5 6V0.5H23.5V6C23.5 9.03757 21.0376 11.5 18 11.5Z" />
-            <path className="fill-[var(--edit-icon-edit)]" d="M12 6.60811L8.93333 3.5L8 4.44595L12 8.5L16 4.44595L15.0667 3.5L12 6.60811Z" />
+            <path className="fill-[var(--edit-primary-icon)]" d="M12 6.60811L8.93333 3.5L8 4.44595L12 8.5L16 4.44595L15.0667 3.5L12 6.60811Z" />
           </svg>
         </button>
       </div>
@@ -270,7 +270,7 @@ export default function AddressCard({
                       <div className={ADDRESS_ROW_ADDR_GRADIENT} aria-hidden>
                         <svg viewBox="0 0 24 24" width="24" height="24">
                           <path
-                            className="fill-[var(--edit-icon-edit)]"
+                            className="fill-[var(--edit-primary-icon)]"
                             d="M14.6 12L10 7.4L11.4 6L17.4 12L11.4 18L10 16.6L14.6 12Z"
                           />
                         </svg>
@@ -325,7 +325,7 @@ export default function AddressCard({
                         {a.deliveryTimeStart || "Start"}
                       </span>
                       <svg viewBox="0 0 24 24" width="24" height="24" className="rotate-90 shrink-0 pointer-events-none" aria-hidden>
-                        <path className="fill-[var(--edit-icon-edit)]" d="M14.6 12L10 7.4L11.4 6L17.4 12L11.4 18L10 16.6L14.6 12Z" />
+                        <path className="fill-[var(--edit-primary-icon)]" d="M14.6 12L10 7.4L11.4 6L17.4 12L11.4 18L10 16.6L14.6 12Z" />
                       </svg>
                     </div>
                     <span className="font-normal text-[16px] leading-[1.5] text-[var(--edit-text-primary)]" aria-hidden>–</span>
@@ -351,7 +351,7 @@ export default function AddressCard({
                         {a.deliveryTimeEnd || "End"}
                       </span>
                       <svg viewBox="0 0 24 24" width="24" height="24" className="rotate-90 shrink-0 pointer-events-none" aria-hidden>
-                        <path className="fill-[var(--edit-icon-edit)]" d="M14.6 12L10 7.4L11.4 6L17.4 12L11.4 18L10 16.6L14.6 12Z" />
+                        <path className="fill-[var(--edit-primary-icon)]" d="M14.6 12L10 7.4L11.4 6L17.4 12L11.4 18L10 16.6L14.6 12Z" />
                       </svg>
                     </div>
                   </div>

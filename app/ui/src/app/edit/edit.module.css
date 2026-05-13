@@ -50,12 +50,12 @@
   --edit-required-asterisk: #DA1B0B;
   --edit-error-border:      #DA1B0B;
   --edit-error-bg:          #fef2f2;
-  --edit-row-icon:      #3D3D3C;
   --edit-footer-logo-bg: url('/b2logo.png') -25.852px -10.077px / 293.436% 265.161% no-repeat;
-
+  
   /* ── Icons ──────────────────────────────────────────────────── */
   --edit-icon-vehicle:  #1C1B1F;
   --edit-icon-location: #1C1B1F;
+  --edit-primary-icon:  #3D3D3C;
 }
 
 /* ── Primary Button Hover and Pressed States Overlay ──────────────────────── */

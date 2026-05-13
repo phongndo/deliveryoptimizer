@@ -60,7 +60,7 @@ export default function AddressPagination({
           >
             <path
               d="M4.6 6L0 1.4L1.4 0L7.4 6L1.4 12L0 10.6L4.6 6Z"
-              fill="var(--edit-icon-edit)"
+              fill="var(--edit-primary-icon)"
             />
           </svg>
         </span>
@@ -90,7 +90,7 @@ export default function AddressPagination({
           <svg width="13" height="12" viewBox="0 0 13 12" fill="none">
             <path
               d="M2 0H0V12H2V0ZM12.4 1.4L11 0L5 6L11 12L12.4 10.6L7.8 6L12.4 1.4Z"
-              fill="var(--edit-icon-edit)"
+              fill="var(--edit-primary-icon)"
             />
           </svg>
         </button>
@@ -105,7 +105,7 @@ export default function AddressPagination({
           <svg width="8" height="12" viewBox="0 0 8 12" fill="none">
             <path
               d="M2.7999 6L7.3999 10.6L5.9999 12L-9.77516e-05 6L5.9999 0L7.3999 1.4L2.7999 6Z"
-              fill="var(--edit-icon-edit)"
+              fill="var(--edit-primary-icon)"
             />
           </svg>
         </button>
@@ -138,7 +138,7 @@ export default function AddressPagination({
           <svg width="8" height="12" viewBox="0 0 8 12" fill="none">
             <path
               d="M4.6 6L0 1.4L1.4 0L7.4 6L1.4 12L0 10.6L4.6 6Z"
-              fill="var(--edit-icon-edit)"
+              fill="var(--edit-primary-icon)"
             />
           </svg>
         </button>
@@ -153,7 +153,7 @@ export default function AddressPagination({
           <svg width="13" height="12" viewBox="0 0 13 12" fill="none">
             <path
               d="M10.3999 0H12.3999V12H10.3999V0ZM-9.82285e-05 1.4L1.3999 0L7.3999 6L1.3999 12L-9.82285e-05 10.6L4.5999 6L-9.82285e-05 1.4Z"
-              fill="var(--edit-icon-edit)"
+              fill="var(--edit-primary-icon)"
             />
           </svg>
         </button>

@@ -168,6 +168,9 @@ export default function AddressCard({
   const [overlayOpen, setOverlayOpen] = useState(false);
   const expanded = !a.locked || manualExpanded;
 
+  const startIdx = TIME_OPTIONS.indexOf(a.deliveryTimeStart);
+  const endIdx = TIME_OPTIONS.indexOf(a.deliveryTimeEnd);
+
   const addrInvalid = geocodeFailed || (addressTouched && !a.recipientAddress.trim());
   const qtyInvalid = addressTouched && a.deliveryQuantity <= 0;
 
@@ -302,12 +305,18 @@ export default function AddressCard({
                     <div className={ADDRESS_ROW_TIME_SELECT_WRAP}>
                       <select
                         value={a.deliveryTimeStart}
-                        onChange={(e) => updateAddress(a.id, "deliveryTimeStart", e.target.value)}
+                        onChange={(e) => {
+                          const newStart = e.target.value;
+                          updateAddress(a.id, "deliveryTimeStart", newStart);
+                          if (endIdx !== -1 && TIME_OPTIONS.indexOf(newStart) >= endIdx) {
+                            updateAddress(a.id, "deliveryTimeEnd", "");
+                          }
+                        }}
                         aria-label="Delivery time start"
                         className={ADDRESS_ROW_TIME_SELECT}
                       >
                         <option value="">Start</option>
-                        {TIME_OPTIONS.map((t) => (
+                        {TIME_OPTIONS.filter((_, i) => endIdx === -1 || i < endIdx).map((t) => (
                           <option key={t} value={t}>{t}</option>
                         ))}
                       </select>
@@ -322,12 +331,18 @@ export default function AddressCard({
                     <div className={ADDRESS_ROW_TIME_SELECT_WRAP}>
                       <select
                         value={a.deliveryTimeEnd}
-                        onChange={(e) => updateAddress(a.id, "deliveryTimeEnd", e.target.value)}
+                        onChange={(e) => {
+                          const newEnd = e.target.value;
+                          updateAddress(a.id, "deliveryTimeEnd", newEnd);
+                          if (startIdx !== -1 && TIME_OPTIONS.indexOf(newEnd) <= startIdx) {
+                            updateAddress(a.id, "deliveryTimeStart", "");
+                          }
+                        }}
                         aria-label="Delivery time end"
                         className={ADDRESS_ROW_TIME_SELECT}
                       >
                         <option value="">End</option>
-                        {TIME_OPTIONS.map((t) => (
+                        {TIME_OPTIONS.filter((_, i) => startIdx === -1 || i > startIdx).map((t) => (
                           <option key={t} value={t}>{t}</option>
                         ))}
                       </select>
@@ -509,24 +524,36 @@ export default function AddressCard({
                     <div className="flex items-center gap-1 w-full min-w-0">
                       <select
                         value={a.deliveryTimeStart}
-                        onChange={(e) => updateAddress(a.id, "deliveryTimeStart", e.target.value)}
+                        onChange={(e) => {
+                          const newStart = e.target.value;
+                          updateAddress(a.id, "deliveryTimeStart", newStart);
+                          if (endIdx !== -1 && TIME_OPTIONS.indexOf(newStart) >= endIdx) {
+                            updateAddress(a.id, "deliveryTimeEnd", "");
+                          }
+                        }}
                         className={`${mobileSelectClass(false)} flex-1 min-w-0`}
                         aria-label="Delivery time start"
                       >
                         <option value="">None</option>
-                        {TIME_OPTIONS.map((t) => (
+                        {TIME_OPTIONS.filter((_, i) => endIdx === -1 || i < endIdx).map((t) => (
                           <option key={t} value={t}>{t}</option>
                         ))}
                       </select>
                       <span className="shrink-0 text-zinc-400 text-xs" aria-hidden>–</span>
                       <select
                         value={a.deliveryTimeEnd}
-                        onChange={(e) => updateAddress(a.id, "deliveryTimeEnd", e.target.value)}
+                        onChange={(e) => {
+                          const newEnd = e.target.value;
+                          updateAddress(a.id, "deliveryTimeEnd", newEnd);
+                          if (startIdx !== -1 && TIME_OPTIONS.indexOf(newEnd) <= startIdx) {
+                            updateAddress(a.id, "deliveryTimeStart", "");
+                          }
+                        }}
                         className={`${mobileSelectClass(false)} flex-1 min-w-0`}
                         aria-label="Delivery time end"
                       >
                         <option value="">None</option>
-                        {TIME_OPTIONS.map((t) => (
+                        {TIME_OPTIONS.filter((_, i) => startIdx === -1 || i > startIdx).map((t) => (
                           <option key={t} value={t}>{t}</option>
                         ))}
                       </select>

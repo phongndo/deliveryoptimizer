@@ -26,6 +26,7 @@ import {
   ADDRESS_BTN_V2_MOBILE_ENABLED,
   ADDRESS_BTN_V2_MOBILE_DISABLED,
   ADDRESS_LIST_CONTAINER,
+  ADDRESS_LIST_CONTAINER_INNER,
   ADDRESS_LIST_DIVIDER,
 } from "../formStyles.v2";
 
@@ -153,28 +154,30 @@ export default function AddressSection({
 
       {/* Desktop hi-fi container: header + divider + rows */}
       <div className={ADDRESS_LIST_CONTAINER}>
-        <AddressRowHeader />
-        <div className={ADDRESS_LIST_DIVIDER} />
-        {addressesCount === 0 ? (
-          <AddressEmptyState />
-        ) : searchQuery.trim() !== "" && addressesOnCurrentPage.length === 0 ? (
-          <div className={ADDRESS_EMPTY_STATE}>No Addresses Found</div>
-        ) : (
-          addressesOnCurrentPage.map((a) => (
-            <AddressCard
-              key={`address-${a.id}`}
-              address={a}
-              addressesCount={addressesCount}
-              updateAddress={updateAddress}
-              deleteAddress={deleteAddress}
-              unlockAddress={unlockAddress}
-              confirmAddress={confirmAddress}
-              addressTouched={touchedIds.has(a.id)}
-              geocodeFailed={geocodeFailedIds.includes(a.id)}
-              outOfRegionFailed={outOfRegionIds.includes(a.id)}
-            />
-          ))
-        )}
+        <div className={ADDRESS_LIST_CONTAINER_INNER}>
+          <AddressRowHeader />
+          <div className={ADDRESS_LIST_DIVIDER} />
+          {addressesCount === 0 ? (
+            <AddressEmptyState />
+          ) : searchQuery.trim() !== "" && addressesOnCurrentPage.length === 0 ? (
+            <div className={ADDRESS_EMPTY_STATE}>No Addresses Found</div>
+          ) : (
+            addressesOnCurrentPage.map((a) => (
+              <AddressCard
+                key={`address-${a.id}`}
+                address={a}
+                addressesCount={addressesCount}
+                updateAddress={updateAddress}
+                deleteAddress={deleteAddress}
+                unlockAddress={unlockAddress}
+                confirmAddress={confirmAddress}
+                addressTouched={touchedIds.has(a.id)}
+                geocodeFailed={geocodeFailedIds.includes(a.id)}
+                outOfRegionFailed={outOfRegionIds.includes(a.id)}
+              />
+            ))
+          )}
+        </div>
       </div>
     </section>
   );

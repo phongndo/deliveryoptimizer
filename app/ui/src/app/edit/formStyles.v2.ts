@@ -172,7 +172,10 @@ export const ADDRESS_ROW_HEADER_CELL_NOTES =
 // ── Address List Container (Figma 7758:2602) ──────────────────────────────────
 
 export const ADDRESS_LIST_CONTAINER =
-  "hidden lg:flex flex-col gap-4 border border-[var(--edit-stone-200)] rounded-[8px] overflow-x-auto p-4";
+  "hidden lg:block border border-[var(--edit-stone-200)] rounded-[8px] overflow-x-auto p-4";
+
+export const ADDRESS_LIST_CONTAINER_INNER =
+  "flex flex-col gap-4 min-w-max";
 
 export const ADDRESS_LIST_DIVIDER =
   "border-t border-[var(--edit-stone-200)] w-full";

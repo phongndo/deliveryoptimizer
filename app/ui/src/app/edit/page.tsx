@@ -28,6 +28,7 @@ import {
   mapOptimizeRequestToEditState,
 } from "./utils/sessionMapper";
 import { useRouter } from "next/navigation";
+import VehicleStartLocationOverlay, { type StartLocationAddress } from "./components/VehicleStartLocationOverlay";
 
 type StoredUploadFile = {
   name: string;
@@ -39,11 +40,15 @@ export default function Page() {
   const vehicleState = useVehicles();
   const addressState = useAddresses();
   const [sessionError, setSessionError] = useState<string | null>(null);
+  const { importVehicles } = vehicleState;
+  const { importAddresses } = addressState;
   const {
     optimize,
     isOptimizing,
     optimizeError,
     clearOptimizeError,
+    needsDepotAddress,
+    dismissDepotAddressPrompt,
     geocodeFailedAddressIds,
     geocodeFailedVehicleIds,
     outOfRegionAddressIds,
@@ -76,8 +81,8 @@ export default function Page() {
 
           if (cancelled) return;
 
-          vehicleState.importVehicles(importedState.vehicles);
-          addressState.importAddresses(importedState.addresses);
+          importVehicles(importedState.vehicles);
+          importAddresses(importedState.addresses);
           sessionStorage.removeItem("savePointFile");
           return;
         } catch (error) {
@@ -107,7 +112,7 @@ export default function Page() {
 
         if (cancelled) return;
 
-        addressState.importAddresses(reindexAddresses(importedAddresses));
+        importAddresses(reindexAddresses(importedAddresses));
         sessionStorage.removeItem("addressFiles");
       } catch (error) {
         if (!cancelled) {
@@ -126,8 +131,8 @@ export default function Page() {
       cancelled = true;
     };
   }, [
-    addressState.importAddresses,
-    vehicleState.importVehicles,
+    importVehicles,
+    importAddresses,
   ]);
 
   const handleImportSession = useCallback(() => {
@@ -160,13 +165,27 @@ export default function Page() {
     setSessionError(null);
   }, []);
 
+  const handleStartLocationSave = useCallback((addr: StartLocationAddress) => {
+    const parts = [addr.line1];
+    if (addr.line2.trim()) parts.push(addr.line2);
+    parts.push(addr.city, `${addr.state} ${addr.zipCode}`, addr.country);
+    const formattedAddress = parts.join(", ");
+    void optimize(formattedAddress);
+  }, [optimize]);
+
   return (
-    <div className={`min-h-screen flex flex-col bg-white font-sans-manrope ${styles.root}`}>
+    <div className={`min-h-screen flex flex-col bg-[var(--edit-stone-50)] font-sans-manrope ${styles.root}`}>
       <OptimizingModal isOpen={isOptimizing} />
+      {needsDepotAddress && (
+        <VehicleStartLocationOverlay
+          onClose={dismissDepotAddressPrompt}
+          onSave={handleStartLocationSave}
+        />
+      )}
       <Navbar
         onImportSession={handleImportSession}
         onExportSession={handleExportSession}
-        onOptimize={optimize}
+        onOptimize={() => void optimize()}
         isOptimizing={isOptimizing}
         error={sessionError ?? optimizeError ?? csvError}
         onClearError={() => { clearSessionError(); clearOptimizeError(); clearCsvError(); }}

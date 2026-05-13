@@ -102,7 +102,10 @@ function StepperInput({
         type="number"
         min={min}
         value={value || ""}
-        onChange={(e) => onChange(parseInt(e.target.value, 10) || 0)}
+        onChange={(e) => {
+          const parsed = parseInt(e.target.value, 10);
+          onChange(Number.isNaN(parsed) ? min : Math.max(min, parsed));
+        }}
         aria-label={ariaLabel}
         className="flex-1 min-w-0 bg-transparent outline-none text-[16px] leading-[1.5] text-[var(--edit-text-primary)] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
       />

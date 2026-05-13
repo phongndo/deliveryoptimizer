@@ -11,7 +11,7 @@ import OptimizingModal from "./components/OptimizingModal";
 import Sidebar from "./components/Sidebar/Sidebar";
 import SidebarEditButton from "./components/Sidebar/SidebarEditButton";
 import SidebarResultsButton from "./components/Sidebar/SidebarResultsButton";
-import { PAGE_V2_BODY, PAGE_V2_MAIN } from "./formStyles.v2";
+import { PAGE_V2_BODY, PAGE_V2_MAIN, ADDRESS_SECTION_WITH_PAGINATION } from "./formStyles.v2";
 import VehicleSection from "./components/VehicleSection";
 import AddressSection from "./components/AddressSection";
 import AddressPagination from "./components/AddressPagination";
@@ -199,8 +199,10 @@ export default function Page() {
         </Sidebar>
         <main className={PAGE_V2_MAIN}>
           <VehicleSection {...vehicleState} geocodeFailedVehicleIds={geocodeFailedVehicleIds} outOfRegionVehicleIds={outOfRegionVehicleIds} />
-          <AddressSection {...addressState} geocodeFailedIds={geocodeFailedAddressIds} outOfRegionIds={outOfRegionAddressIds} onCSVUpload={handleCSVUpload} />
-          <AddressPagination {...addressState} />
+          <div className={ADDRESS_SECTION_WITH_PAGINATION}>
+            <AddressSection {...addressState} geocodeFailedIds={geocodeFailedAddressIds} outOfRegionIds={outOfRegionAddressIds} onCSVUpload={handleCSVUpload} />
+            <AddressPagination {...addressState} />
+          </div>
           <EditPageFooter />
         </main>
       </div>

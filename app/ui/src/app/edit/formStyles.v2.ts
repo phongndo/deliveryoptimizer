@@ -47,7 +47,7 @@ export const NAVBAR_V2_BTN_FILLED =
 export const PAGE_V2_BODY = "flex flex-1 min-h-0";
 
 export const PAGE_V2_MAIN =
-  "flex-1 min-w-0 bg-[var(--edit-bg-primary)] border-t border-l border-[var(--edit-stone-200)] rounded-tl-[12px] p-6 lg:p-8 space-y-8 lg:space-y-10";
+  "flex-1 min-w-0 bg-[var(--edit-bg-primary)] border-t border-l border-[var(--edit-stone-200)] rounded-tl-[12px] p-6 space-y-16";
 
 export const VEHICLE_INFO_CONTAINER =
   "hidden lg:flex flex-col gap-4 border border-[var(--edit-stone-200)] rounded-[8px] overflow-hidden p-4";
@@ -115,6 +115,9 @@ export const VEHICLE_SECTION_HEADING =
 
 export const VEHICLE_SECTION_SUBHEADING =
   "text-[16px] leading-normal text-[var(--edit-text-secondary)]";
+
+export const ADDRESS_SECTION_WITH_PAGINATION =
+  "flex flex-col gap-4";
 
 export const ADDRESS_SECTION_HEADER =
   "flex flex-col gap-2 mb-4";

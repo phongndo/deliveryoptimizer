@@ -1,7 +1,7 @@
 .launcher {
   position: fixed;
   right: 20px;
-  bottom: 20px;
+  top: 72px;
   z-index: 70;
   border: 1px solid #dcdbd8;
   border-radius: 999px;
@@ -320,7 +320,7 @@
 @media (max-width: 560px) {
   .launcher {
     right: 14px;
-    bottom: 14px;
+    top: 62px;
   }
 
   .backdrop {

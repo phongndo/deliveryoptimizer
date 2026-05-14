@@ -11,12 +11,12 @@ export const ADDRESS_PAGE_SIZE_OPTIONS = [5, 10, 20, 30] as const;
 export function useAddresses() {
   const [addresses, setAddresses] = useState<AddressCard[]>([]);
 
-  // Search: fuzzy filter across address and notes fields.
+  // Search: fuzzy filter across name, phone, address, and notes.
   const [searchQuery, _setSearchQuery] = useState("");
 
-  // Fuse.js is a fuzzy search library that allows us to search for addresses and notes.
+  // Fuse.js fuzzy search across recipient identity and stop details.
   const fuse = useMemo(() => new Fuse(addresses, {
-    keys: ["recipientAddress", "notes"],
+    keys: ["recipientName", "phoneNumber", "recipientAddress", "notes"],
     threshold: 0.3,         // 0.0 = exact, 1.0 = match anything
     ignoreLocation: true,   // don't penalize matches far from string start
   }), [addresses]);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { CSSProperties } from "react";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import { SUPPORTED_STATES } from "../constants/supportedRegions";
@@ -104,6 +104,7 @@ export default function AddressOverlay({
 
   const line1InputRef = useRef<HTMLInputElement>(null);
   const blurTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [dropdownStyle, setDropdownStyle] = useState<CSSProperties>({});
 
   const stateFilter = useCallback(
     (s: AddressSuggestion) => SUPPORTED_STATES.has(s.address?.state ?? ""),
@@ -118,11 +119,11 @@ export default function AddressOverlay({
     };
   }, []);
 
-  function getDropdownStyle(): CSSProperties {
-    if (!line1InputRef.current) return {};
+  useLayoutEffect(() => {
+    if (!showSuggestions || !line1InputRef.current) return;
     const r = line1InputRef.current.getBoundingClientRect();
-    return { top: r.bottom + 4, left: r.left, width: r.width };
-  }
+    setDropdownStyle({ top: r.bottom + 4, left: r.left, width: r.width });
+  }, [showSuggestions]);
 
   function handleLine1Select(s: AddressSuggestion) {
     if (blurTimeoutRef.current) {
@@ -222,7 +223,7 @@ export default function AddressOverlay({
                     suggestions={suggestions}
                     selectedIndex={selectedIndex}
                     onSelect={handleLine1Select}
-                    style={getDropdownStyle()}
+                    style={dropdownStyle}
                   />
                 )}
               </div>

@@ -59,14 +59,17 @@ export function addressCardToDeliveryInput(
     timeWindow = [0, timeToSeconds(end)];
   }
 
+  const recipientNameTrimmed = (a.recipientName ?? "").trim();
+  const phoneRaw = a.phoneNumber ?? "";
+  const phoneDigits = phoneRaw.replace(/\D/g, "");
+  const notesTrimmed = (a.notes ?? "").trim();
+
   return {
     id: a.id,
-    recipientName: a.recipientName.trim() || undefined,
-    phoneNumber: a.phoneNumber.replace(/\D/g, "").length >= 10
-    ? a.phoneNumber.trim()
-    : undefined,
+    recipientName: recipientNameTrimmed || undefined,
+    phoneNumber: phoneDigits.length >= 10 ? phoneRaw.trim() : undefined,
     address: a.recipientAddress,
-    notes: a.notes.trim() ? a.notes : undefined,
+    notes: notesTrimmed || undefined,
     location,
     bufferTime: a.timeBuffer > 0 ? a.timeBuffer * 60 : 0,
     demand: { type: demandType, value: a.deliveryQuantity },

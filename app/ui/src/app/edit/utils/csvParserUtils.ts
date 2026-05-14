@@ -47,6 +47,25 @@ export function normalizeTimeOption(raw: string): string {
 // Column aliases for the CSV file
 const COLUMN_ALIASES: Record<string, string[]> = {
   address: ["address", "delivery_address", "street", "location", "destination"],
+  recipient_name: [
+    "recipient_name",
+    "name",
+    "recipient",
+    "customer_name",
+    "contact_name",
+    "full_name",
+    "delivery_contact",
+    "attn",
+  ],
+  phone_number: [
+    "phone_number",
+    "phone",
+    "tel",
+    "telephone",
+    "mobile",
+    "cell",
+    "contact_phone",
+  ],
   time_window_start: [
     "time_window_start",
     "start_time",

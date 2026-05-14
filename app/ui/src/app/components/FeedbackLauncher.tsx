@@ -212,9 +212,12 @@ export default function FeedbackLauncher() {
         className={styles.launcher}
         onClick={() => setIsOpen(true)}
         aria-haspopup="dialog"
+        aria-label="Report bug or feedback"
       >
-        <span className={styles.mark} aria-hidden="true">!</span>
-        Report bug / feedback
+        <span className={styles.mark} aria-hidden="true">?</span>
+        <span className={styles.launcherLabel} aria-hidden="true">
+          Report bug / feedback
+        </span>
       </button>
 
       {isOpen && (

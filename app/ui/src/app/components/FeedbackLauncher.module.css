@@ -1,7 +1,13 @@
 .launcher {
+  --feedback-launcher-offset: 40px;
+  --feedback-footer-clearance: 84px;
+
   position: fixed;
-  right: 32px;
-  bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+  right: var(--feedback-launcher-offset);
+  bottom: calc(
+    var(--feedback-footer-clearance) + var(--feedback-launcher-offset) +
+      env(safe-area-inset-bottom, 0px)
+  );
   z-index: 70;
   border: 1px solid #dcdbd8;
   border-radius: 999px;
@@ -319,8 +325,7 @@
 
 @media (max-width: 560px) {
   .launcher {
-    right: 14px;
-    bottom: calc(88px + env(safe-area-inset-bottom, 0px));
+    --feedback-launcher-offset: 18px;
   }
 
   .backdrop {

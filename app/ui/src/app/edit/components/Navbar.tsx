@@ -7,6 +7,7 @@ import {
   NAVBAR_V2_LOGO,
   NAVBAR_V2_ROOT,
 } from "../formStyles.v2";
+import styles from "../edit.module.css";
 import ErrorPopup from "./ErrorPopup";
 
 type NavbarProps = {
@@ -39,7 +40,7 @@ export default function Navbar({
             Export Session
           </button>
           <button
-            className={NAVBAR_V2_BTN_FILLED}
+            className={`${NAVBAR_V2_BTN_FILLED} ${styles.primaryBtnOverlay}`}
             onClick={onOptimize}
             disabled={isOptimizing}
           >

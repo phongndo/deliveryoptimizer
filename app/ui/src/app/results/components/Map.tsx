@@ -11,9 +11,26 @@ const POLYLINE_COLOR = "#2563eb";
 
 const ROUTE_POLYLINE_OPTIONS: google.maps.PolylineOptions = {
   strokeColor: POLYLINE_COLOR,
-  strokeWeight: 5,
-  strokeOpacity: 0.9,
+  strokeWeight: 4,
+  strokeOpacity: 0.75,
 };
+
+const directionsCache = new Map<string, google.maps.LatLng[]>();
+// Cap cache size so one long session does not grow memory without bound
+const MAX_DIRECTIONS_CACHE_SIZE = 100;
+
+function rememberDirectionsPath(cacheKey: string, roadPath: google.maps.LatLng[]) {
+  directionsCache.set(cacheKey, roadPath);
+  while (directionsCache.size > MAX_DIRECTIONS_CACHE_SIZE) {
+    const firstKey = directionsCache.keys().next().value;
+    if (firstKey === undefined) break;
+    directionsCache.delete(firstKey);
+  }
+}
+
+function routeCacheKey(path: google.maps.LatLngLiteral[]): string {
+  return path.map((p) => `${p.lat.toFixed(6)},${p.lng.toFixed(6)}`).join("|");
+}
 
 function buildRoutePath(
   route: Route,
@@ -34,39 +51,115 @@ function buildRoutePath(
 function RoutePolylinesOverlay({
   routes,
   pendingPinMove,
+  onRouteDistanceUpdate,
 }: {
   routes: Route[];
   pendingPinMove: PendingPinMove | null;
+  onRouteDistanceUpdate?: (vehicleId: string, distanceMi: number) => void;
 }) {
   const map = useGoogleMap();
   const polylinesRef = useRef<google.maps.Polyline[]>([]);
 
   useEffect(() => {
-    if (!map) return;
+    if (!map || typeof google === "undefined") return;
 
     polylinesRef.current.forEach((p) => {
       p.setMap(null);
     });
     polylinesRef.current = [];
 
-    routes.forEach((route) => {
-      const path = buildRoutePath(route, pendingPinMove);
-      if (path.length < 2) return;
-      const poly = new google.maps.Polyline({
+    let cancelled = false;
+    const directionsService = new google.maps.DirectionsService();
+
+    const drawFallback = (route: Route) => {
+      if (cancelled) return;
+      const fallbackPath = buildRoutePath(route, pendingPinMove);
+      if (fallbackPath.length < 2) return;
+      const fallbackPoly = new google.maps.Polyline({
         map,
-        path,
+        path: fallbackPath,
         ...ROUTE_POLYLINE_OPTIONS,
       });
-      polylinesRef.current.push(poly);
-    });
+      polylinesRef.current.push(fallbackPoly);
+    };
+
+    void Promise.allSettled(
+      routes.map(async (route) => {
+        const path = buildRoutePath(route, pendingPinMove);
+        if (path.length < 2) return;
+        const origin = path[0]!;
+        const destination = path[path.length - 1]!;
+
+        const waypoints = path.slice(1, -1).map((location) => ({ location, stopover: true }));
+        if (waypoints.length > 25) {
+          drawFallback(route);
+          return;
+        }
+
+        const cacheKey = routeCacheKey(path);
+        const cachedRoadPath = directionsCache.get(cacheKey);
+        if (cachedRoadPath && cachedRoadPath.length >= 2) {
+          if (cancelled) return;
+          const cachedPoly = new google.maps.Polyline({
+            map,
+            path: cachedRoadPath,
+            ...ROUTE_POLYLINE_OPTIONS,
+          });
+          polylinesRef.current.push(cachedPoly);
+          return;
+        }
+
+        try {
+          const result = await directionsService.route({
+            origin,
+            destination,
+            waypoints,
+            optimizeWaypoints: false,
+            travelMode: google.maps.TravelMode.DRIVING,
+          });
+          if (cancelled) return;
+
+          const roadPath = result.routes[0]?.overview_path;
+          if (!roadPath || roadPath.length < 2) {
+            drawFallback(route);
+            return;
+          }
+
+          const totalMeters = (result.routes[0]?.legs ?? []).reduce(
+            (sum, leg) => sum + (leg.distance?.value ?? 0),
+            0
+          );
+          if (cancelled) return;
+          if (totalMeters > 0 && onRouteDistanceUpdate) {
+            const distanceMi = Number((totalMeters / 1609.344).toFixed(1));
+            onRouteDistanceUpdate(route.vehicleId, distanceMi);
+          }
+          if (cancelled) return;
+
+          rememberDirectionsPath(cacheKey, roadPath);
+          if (cancelled) return;
+
+          const roadPoly = new google.maps.Polyline({
+            map,
+            path: roadPath,
+            ...ROUTE_POLYLINE_OPTIONS,
+          });
+          polylinesRef.current.push(roadPoly);
+        } catch (err) {
+          console.warn("[Map] DirectionsService failed, falling back to straight line:", err);
+          drawFallback(route);
+        }
+      })
+    );
 
     return () => {
+      cancelled = true;
       polylinesRef.current.forEach((p) => {
         p.setMap(null);
       });
       polylinesRef.current = [];
     };
-  }, [map, routes, pendingPinMove]);
+  }, [map, routes, pendingPinMove, onRouteDistanceUpdate]);
 
   return null;
 }
@@ -91,6 +184,7 @@ type MapComponentProps = {
   isEditMode: boolean;
   pendingPinMove: PendingPinMove | null;
   onPendingPinMove: (vehicleId: string, stopId: string, lat: number, lng: number) => void;
+  onRouteDistanceUpdate?: (vehicleId: string, distanceMi: number) => void;
 };
 
 type AdvancedMarkersProps = {
@@ -212,6 +306,7 @@ export default function MapComponent({
   isEditMode,
   pendingPinMove,
   onPendingPinMove,
+  onRouteDistanceUpdate,
 }: MapComponentProps) {
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_KEY ?? "";
   const mapId = process.env.NEXT_PUBLIC_GOOGLE_MAPS_MAP_ID || undefined;
@@ -270,7 +365,11 @@ export default function MapComponent({
           onLoad={onMapLoad}
           onUnmount={onUnmount}
         >
-          <RoutePolylinesOverlay routes={routes} pendingPinMove={pendingPinMove} />
+          <RoutePolylinesOverlay
+            routes={routes}
+            pendingPinMove={pendingPinMove}
+            onRouteDistanceUpdate={onRouteDistanceUpdate}
+          />
           {mapId && (
             <AdvancedMarkers
               map={map}

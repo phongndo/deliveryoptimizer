@@ -6,7 +6,7 @@ import {
   OVERLAY_BACKDROP,
   OVERLAY_BODY,
   OVERLAY_CANCEL_BTN,
-  OVERLAY_PRIMARY_BTN,
+  OVERLAY_DELETE_BTN,
   OVERLAY_CLOSE_BTN,
   OVERLAY_FOOTER,
   OVERLAY_HEADER,
@@ -94,7 +94,7 @@ export default function ConfirmVehicleDeletionOverlay({
           <button type="button" onClick={onClose} className={OVERLAY_CANCEL_BTN}>
             Cancel
           </button>
-          <button type="button" onClick={onConfirm} className={`${OVERLAY_PRIMARY_BTN} ${styles.primaryBtnOverlay}`}>
+          <button type="button" onClick={onConfirm} className={`${OVERLAY_DELETE_BTN} ${styles.primaryBtnOverlay}`}>
             Delete
           </button>
         </div>

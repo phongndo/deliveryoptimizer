@@ -84,7 +84,6 @@ function parseRecipientAddress(addr: string): Partial<LocationAddress> {
 
 type AddressCardProps = {
   address: AddressCardType;
-  addressesCount: number;
   updateAddress: <K extends keyof AddressCardType>(id: number, key: K, value: AddressCardType[K]) => void;
   deleteAddress: (id: number) => void;
   unlockAddress: (id: number) => void;
@@ -172,7 +171,6 @@ function AutoResizeNotesTextarea({
 
 export default function AddressCard({
   address: a,
-  addressesCount,
   updateAddress,
   deleteAddress,
   unlockAddress,
@@ -483,7 +481,7 @@ export default function AddressCard({
                   <button type="button" onClick={() => unlockAddress(a.id)} className={PILL_ROW_HALF_NEUTRAL}>
                     Edit
                   </button>
-                  <button type="button" onClick={() => deleteAddress(a.id)} disabled={addressesCount <= 1} className={PILL_ROW_HALF_DANGER}>
+                  <button type="button" onClick={() => deleteAddress(a.id)} className={PILL_ROW_HALF_DANGER}>
                     Delete
                   </button>
                 </div>
@@ -610,7 +608,6 @@ export default function AddressCard({
                 <button
                   type="button"
                   onClick={() => deleteAddress(a.id)}
-                  disabled={addressesCount <= 1}
                   className={MOBILE_DELETE_TEXT}
                 >
                   Delete

@@ -15,6 +15,7 @@
 ### Frontend
 
 - [ ] `npm --prefix app/ui run lint`
+- [ ] `npm --prefix app/ui run format:check`
 - [ ] `npm --prefix app/ui run typecheck`
 - [ ] `npm --prefix app/ui run test`
 - [ ] `npm --prefix app/ui run build`
@@ -23,8 +24,8 @@
 
 ### Backend
 
-- [ ] `bash .github/scripts/check-backend-format.sh <changed-backend-c++-files>`
 - [ ] `cmake --preset dev`
+- [ ] `.github/scripts/check-backend-static.sh build/dev`
 - [ ] `cmake --build --preset dev --parallel`
 - [ ] `ctest --preset dev --output-on-failure --no-tests=error -LE 'e2e|docker'`
 - [ ] `docker compose -f deploy/compose/docker-compose.arm64.yml --env-file deploy/env/http-server.arm64.env config`

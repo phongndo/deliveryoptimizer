@@ -159,6 +159,9 @@ export const ADDRESS_BTN_V2_MOBILE_DISABLED =
 export const ADDRESS_SEARCH_BAR =
   "flex items-center gap-2 px-4 py-[11px] rounded-[80px] border border-[var(--edit-stone-200)] bg-[var(--edit-stone-50)] focus-within:border-[var(--edit-teal-300)] transition-colors";
 
+export const ADDRESS_SEARCH_BAR_DESKTOP =
+  "flex items-center gap-2 h-9 px-4 rounded-[80px] border border-[var(--edit-stone-200)] bg-transparent focus-within:border-[var(--edit-teal-300)] transition-colors";
+
 export const ADDRESS_SEARCH_INPUT =
   "flex-1 font-normal text-[16px] leading-[1.5] text-[var(--edit-text-primary)] placeholder:text-[var(--edit-stone-500)] outline-none bg-transparent min-w-0 [&::-webkit-search-cancel-button]:hidden";
 
@@ -169,7 +172,7 @@ export const ADDRESS_SEARCH_ICON =
   "shrink-0 size-6";
 
 export const ADDRESS_SEARCH_DESKTOP_SIZE =
-  "shrink-0 w-56 xl:w-72";
+  "shrink-0 w-[440px]";
 
 export const ADDRESS_TOOLBAR_SPACER =
   "flex-1 min-w-0";

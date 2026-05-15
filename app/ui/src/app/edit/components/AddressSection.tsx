@@ -117,7 +117,12 @@ export default function AddressSection({
 
       {/* Desktop: Search left, spacer, Add right */}
       <div className={ADDRESS_TOOLBAR_DESKTOP}>
-        <AddressSearchBar value={searchQuery} onChange={setSearchQuery} className={ADDRESS_SEARCH_DESKTOP_SIZE} />
+        <AddressSearchBar
+          value={searchQuery}
+          onChange={setSearchQuery}
+          className={ADDRESS_SEARCH_DESKTOP_SIZE}
+          variant="desktop"
+        />
         <div className={ADDRESS_TOOLBAR_SPACER} />
         <button
           type="button"

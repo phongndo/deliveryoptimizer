@@ -113,40 +113,6 @@ export function useVehicles() {
     });
   }, []);
 
-  // Edit mode for a locked row: clear any stale validation state for the row.
-  const unlockVehicle = useCallback((id: number) => {
-    setVehicles((prev) =>
-      prev.map((v) => (v.id === id ? { ...v, locked: false, editingExisting: true } : v))
-    );
-    setTouchedIds((t) => {
-      const next = new Set(t);
-      next.delete(id);
-      return next;
-    });
-  }, []);
-
-  // Validate required fields; on failure mark only this row, on success lock it.
-  const confirmVehicle = useCallback((id: number) => {
-    setVehicles((prev) => {
-      const v = prev.find((x) => x.id === id);
-      if (!v) return prev;
-  
-      if (!isVehicleValid(v)) {
-        setTouchedIds((t) => new Set([...t, id]));
-        return prev;
-      }
-  
-      setTouchedIds((t) => {
-        const next = new Set(t);
-        next.delete(id);
-        return next;
-      });
-      return prev.map((x) =>
-        x.id === id ? { ...x, locked: true, editingExisting: false } : x
-      );
-    });
-  }, []);
-
   const markAllAvailable = useCallback(() => {
     setVehicles((prev) => prev.map((v) => ({ ...v, available: true })));
   }, []);
@@ -171,8 +137,6 @@ export function useVehicles() {
     addVehicle,
     addVehicleWithDetails,
     deleteVehicle,
-    unlockVehicle,
-    confirmVehicle,
     markAllAvailable,
     importVehicles,
     touchedIds,

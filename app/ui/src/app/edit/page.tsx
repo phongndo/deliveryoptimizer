@@ -7,6 +7,8 @@
 
 import styles from "./edit.module.css";
 import Navbar from "./components/Navbar";
+import MobileNavbar from "./components/MobileNavbar";
+import MobileSidebar from "./components/MobileSidebar";
 import OptimizingModal from "./components/OptimizingModal";
 import Sidebar from "./components/Sidebar/Sidebar";
 import SidebarEditButton from "./components/Sidebar/SidebarEditButton";
@@ -15,7 +17,10 @@ import { PAGE_V2_ROOT, PAGE_V2_BODY, PAGE_V2_MAIN, ADDRESS_SECTION_WITH_PAGINATI
 import VehicleSection from "./components/VehicleSection";
 import AddressSection from "./components/AddressSection";
 import AddressPagination from "./components/AddressPagination";
+import AddressPaginationMobile from "./components/AddressPaginationMobile";
 import EditPageFooter from "./components/EditPageFooter";
+import MobileEditPageFooter from "./components/MobileEditPageFooter";
+import MobileBottomBar from "./components/MobileBottomBar";
 import { useVehicles } from "./hooks/useVehicles";
 import { useAddresses } from "./hooks/useAddresses";
 import { useOptimize } from "./hooks/useOptimize";
@@ -41,6 +46,7 @@ export default function Page() {
   const vehicleState = useVehicles();
   const addressState = useAddresses();
   const [sessionError, setSessionError] = useState<string | null>(null);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { importVehicles } = vehicleState;
   const { importAddresses } = addressState;
   const {
@@ -184,6 +190,14 @@ export default function Page() {
           onSave={handleStartLocationSave}
         />
       )}
+      <MobileSidebar isOpen={isMobileMenuOpen} onClose={() => setIsMobileMenuOpen(false)} />
+      <MobileBottomBar
+        onOptimize={() => void optimize()}
+        onSave={handleExportSession}
+        onExport={handleExportSession}
+        isOptimizing={isOptimizing}
+      />
+      <MobileNavbar onMenuClick={() => setIsMobileMenuOpen(true)} />
       <Navbar
         onImportSession={handleImportSession}
         onExportSession={handleExportSession}
@@ -202,8 +216,10 @@ export default function Page() {
           <div className={ADDRESS_SECTION_WITH_PAGINATION}>
             <AddressSection {...addressState} geocodeFailedIds={geocodeFailedAddressIds} outOfRegionIds={outOfRegionAddressIds} onCSVUpload={handleCSVUpload} />
             <AddressPagination {...addressState} />
+            <AddressPaginationMobile {...addressState} />
           </div>
           <EditPageFooter />
+          <MobileEditPageFooter />
         </main>
       </div>
     </div>

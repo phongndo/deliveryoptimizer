@@ -21,6 +21,7 @@
   --edit-teal-700:    #265749;
   --edit-teal-alpha:  #39746126;
   --edit-pagination-active-bg: rgba(26, 173, 144, 0.24);
+  --edit-pagination-mobile-active-bg: #c3e1d8;
 
   /* ── Stone neutrals (Figma Stone scale) ─────────────────────── */
   --edit-bg-primary:  #FDFDFC;
@@ -60,6 +61,29 @@
   --edit-icon-vehicle:  #1C1B1F;
   --edit-icon-location: #1C1B1F;
   --edit-primary-icon:  #3D3D3C;
+
+  /* ── Empty state illustrations ──────────────────────────────── */
+  --edit-empty-state-shadow:       #E8E8E8;
+
+  /* Vehicle illustration */
+  --edit-vehicle-body:             #4F46E5;
+  --edit-vehicle-window:           #A5B4FC;
+  --edit-vehicle-accent:           #3730A3;
+  --edit-vehicle-detail:           #C7D2FE;
+  --edit-vehicle-wheel-outer:      #1E1E2E;
+  --edit-vehicle-wheel-mid:        #6B7280;
+  --edit-vehicle-wheel-inner:      #D1D5DB;
+  --edit-vehicle-light:            #FCD34D;
+  --edit-vehicle-back-panel:       #312E81;
+
+  /* Address illustration */
+  --edit-address-accent:           #F97316;
+  --edit-address-on-accent:        #ffffff;
+  --edit-address-card-bg:          #FFF7ED;
+  --edit-address-card-border:      #FED7AA;
+  --edit-address-card-header:      #FFEDD5;
+  --edit-address-card-line-dark:   #E5E7EB;
+  --edit-address-card-line-light:  #F3F4F6;
 }
 
 /* ── Primary Button Hover and Pressed States Overlay ──────────────────────── */

@@ -12,9 +12,7 @@ import AddressRowHeader from "./AddressRowHeader";
 import type { AddressCard as AddressCardType } from "../types/delivery";
 import {
   ADDRESS_EMPTY_STATE,
-  ADDRESS_LIST_WRAP,
   ADDRESS_TOOLBAR_DESKTOP,
-  ADDRESS_TOOLBAR_MOBILE_WRAP,
 } from "../formStyles";
 
 import AddressSearchBar from "./AddressSearchBar";
@@ -24,13 +22,17 @@ import {
   ADDRESS_SECTION_SUBHEADING,
   ADDRESS_BTN_V2_DESKTOP_ENABLED,
   ADDRESS_BTN_V2_DESKTOP_DISABLED,
-  ADDRESS_BTN_V2_MOBILE_ENABLED,
-  ADDRESS_BTN_V2_MOBILE_DISABLED,
   ADDRESS_LIST_CONTAINER,
   ADDRESS_LIST_CONTAINER_INNER,
   ADDRESS_LIST_DIVIDER,
   ADDRESS_SEARCH_DESKTOP_SIZE,
   ADDRESS_TOOLBAR_SPACER,
+  MOBILE_EMPTY_STATE_CONTAINER,
+  MOBILE_ADDR_TOOLBAR_ROOT,
+  MOBILE_ADDR_TOOLBAR_BTN_ROW,
+  MOBILE_ADDR_TOOLBAR_BTN_ENABLED,
+  MOBILE_ADDR_TOOLBAR_BTN_DISABLED,
+  ADDRESS_LIST_MOBILE_WRAP,
 } from "../formStyles.v2";
 
 type AddressSectionProps = {
@@ -95,24 +97,26 @@ export default function AddressSection({
         aria-hidden
       />
 
-      {/* Mobile: Add first, then Import, then search full-width */}
-      <div className={ADDRESS_TOOLBAR_MOBILE_WRAP}>
-        <button
-          type="button"
-          disabled={!addEnabled}
-          onClick={addAddress}
-          className={addEnabled ? ADDRESS_BTN_V2_MOBILE_ENABLED : ADDRESS_BTN_V2_MOBILE_DISABLED}
-        >
-          Add address
-        </button>
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          className={ADDRESS_BTN_V2_MOBILE_ENABLED}
-        >
-          Import
-        </button>
-        <AddressSearchBar value={searchQuery} onChange={setSearchQuery} />
+      {/* Mobile: Search top, buttons right-aligned side-by-side (Figma 8325:7503) */}
+      <div className={MOBILE_ADDR_TOOLBAR_ROOT}>
+        <AddressSearchBar value={searchQuery} onChange={setSearchQuery} variant="compact" />
+        <div className={MOBILE_ADDR_TOOLBAR_BTN_ROW}>
+          <button
+            type="button"
+            onClick={() => fileInputRef.current?.click()}
+            className={MOBILE_ADDR_TOOLBAR_BTN_ENABLED}
+          >
+            Import
+          </button>
+          <button
+            type="button"
+            disabled={!addEnabled}
+            onClick={addAddress}
+            className={addEnabled ? MOBILE_ADDR_TOOLBAR_BTN_ENABLED : MOBILE_ADDR_TOOLBAR_BTN_DISABLED}
+          >
+            New address
+          </button>
+        </div>
       </div>
 
       {/* Desktop: Search left, spacer, Add right */}
@@ -141,28 +145,35 @@ export default function AddressSection({
         </button>
       </div>
 
-      {/* Mobile: stacked cards */}
-      <div className={`lg:hidden ${ADDRESS_LIST_WRAP}`}>
-        {addressesCount === 0 ? (
+      {/* Mobile: bordered empty state */}
+      {addressesCount === 0 && (
+        <div className={MOBILE_EMPTY_STATE_CONTAINER}>
           <AddressEmptyState />
-        ) : searchQuery.trim() !== "" && addressesOnCurrentPage.length === 0 ? (
-          <div className={ADDRESS_EMPTY_STATE}>No Addresses Found</div>
-        ) : (
-          addressesOnCurrentPage.map((a) => (
-            <AddressCard
-              key={`address-${a.id}`}
-              address={a}
-              updateAddress={updateAddress}
-              deleteAddress={handleDeleteRequest}
-              unlockAddress={unlockAddress}
-              confirmAddress={confirmAddress}
-              addressTouched={touchedIds.has(a.id)}
-              geocodeFailed={geocodeFailedIds.includes(a.id)}
-              outOfRegionFailed={outOfRegionIds.includes(a.id)}
-            />
-          ))
-        )}
-      </div>
+        </div>
+      )}
+
+      {/* Mobile: stacked cards or no-results message */}
+      {addressesCount > 0 && (
+        <div className={ADDRESS_LIST_MOBILE_WRAP}>
+          {searchQuery.trim() !== "" && addressesOnCurrentPage.length === 0 ? (
+            <div className={ADDRESS_EMPTY_STATE}>No Addresses Found</div>
+          ) : (
+            addressesOnCurrentPage.map((a) => (
+              <AddressCard
+                key={`address-${a.id}`}
+                address={a}
+                updateAddress={updateAddress}
+                deleteAddress={handleDeleteRequest}
+                unlockAddress={unlockAddress}
+                confirmAddress={confirmAddress}
+                addressTouched={touchedIds.has(a.id)}
+                geocodeFailed={geocodeFailedIds.includes(a.id)}
+                outOfRegionFailed={outOfRegionIds.includes(a.id)}
+              />
+            ))
+          )}
+        </div>
+      )}
 
       {/* Desktop hi-fi container: header + divider + rows */}
       <div className={ADDRESS_LIST_CONTAINER}>

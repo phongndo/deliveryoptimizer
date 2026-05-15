@@ -5,21 +5,6 @@ import AddressOverlay, { type LocationAddress } from "./AddressOverlay";
 import { TIME_OPTIONS } from "../constants/timeOptions";
 import type { AddressCard as AddressCardType } from "../types/delivery";
 import {
-  ADDRESS_CARD_ROOT_BASE,
-  GEOCODE_ERROR_LOCKED,
-  ACCORDION_TRIGGER,
-  CONFIRM_PILL_MOBILE,
-  MOBILE_ADDRESS_INPUT_BASE,
-  MOBILE_ADDRESS_LOCKED_ROW,
-  MOBILE_ADDRESS_NOTES_AREA,
-  MOBILE_ADDRESS_NOTES_TEXTAREA,
-  MOBILE_DELETE_TEXT,
-  MOBILE_FIELD_LABEL,
-  PILL_ROW_HALF_DANGER,
-  PILL_ROW_HALF_NEUTRAL,
-  fieldBorder,
-} from "../formStyles";
-import {
   ADDRESS_ROW_EDIT_ROOT,
   ADDRESS_ROW_DESKTOP_WRAPPER,
   ADDRESS_ROW_EDIT_LEFT,
@@ -57,7 +42,31 @@ import {
   ADDRESS_ROW_LOCKED_NOTES_BTN,
   ADDRESS_ROW_LOCKED_NOTES_TEXT,
   ADDRESS_ROW_GEOCODE_ERROR_LOCKED,
-  MOBILE_LOCKED_CLICKABLE,
+  MOBILE_ADDR_CARD_EDIT_CONTENT,
+  MOBILE_ADDR_EDIT_SECTION,
+  MOBILE_ADDR_EDIT_SECTION_LABEL,
+  MOBILE_ADDR_EDIT_NAME_ROW,
+  MOBILE_ADDR_EDIT_DELIVERY_INFO_ROW,
+  MOBILE_ADDR_EDIT_DELIVERY_GROUP,
+  MOBILE_ADDR_EDIT_EST_CONTROL,
+  MOBILE_ADDR_EDIT_SCHEDULE_ROW,
+  MOBILE_ADDR_EDIT_TIME_SELECT_WRAP,
+  MOBILE_ADDR_EDIT_NOTES_WRAP,
+  MOBILE_ADDR_EDIT_ACTION_BAR,
+  MOBILE_ADDR_EDIT_ACTION_BAR_END,
+  MOBILE_ADDR_EDIT_COLLAPSE_BTN,
+  MOBILE_ADDR_EDIT_ICON_BTNS_GROUP,
+  MOBILE_ADDR_LOCKED_VALUE,
+  MOBILE_ADDR_LOCKED_FIELD_BTN,
+  MOBILE_ADDR_LOCKED_RECIPIENT_LINES,
+  MOBILE_ADDR_LOCKED_GEOCODE_ERROR,
+  MOBILE_ADDR_SUMMARY_CONTENT,
+  MOBILE_ADDR_SUMMARY_SECTION,
+  MOBILE_ADDR_SUMMARY_ACTION_BAR,
+  MOBILE_ADDR_SUMMARY_EXPAND_BTN,
+  ADDRESS_CARD_MOBILE_ROOT,
+  MOBILE_ADDR_EXPANDED_PANEL,
+  MOBILE_ADDR_LOCKED_NOTES_CLAMP,
 } from "../formStyles.v2";
 import { EditIconButton, ConfirmIconButton, DeleteIconButton } from "./RowIconButtons";
 
@@ -187,15 +196,7 @@ export default function AddressCard({
   const endIdx = TIME_OPTIONS.indexOf(a.deliveryTimeEnd);
 
   const addrInvalid = geocodeFailed || (addressTouched && !a.recipientAddress.trim());
-  const qtyInvalid = addressTouched && a.deliveryQuantity <= 0;
 
-  const mobileInputClass = (invalid: boolean) =>
-    `${MOBILE_ADDRESS_INPUT_BASE} ${fieldBorder(invalid, "mobile")}`;
-
-  const mobileSelectClass = (invalid: boolean) =>
-    `${MOBILE_ADDRESS_INPUT_BASE} ${fieldBorder(invalid, "mobile")} cursor-pointer select-chevron`;
-
-  const displayAddr = a.recipientAddress.trim() || a.recipientName.trim() || "Address";
   const panelId = `addr-panel-${a.id}`;
 
   return (
@@ -395,149 +396,198 @@ export default function AddressCard({
         </div>
       </div>
 
-      {/* ── Mobile accordion ── */}
-      <div className={`${ADDRESS_CARD_ROOT_BASE} lg:hidden`}>
-        <button
-          type="button"
-          onClick={() => {
-            if (a.locked) {
-              setManualExpanded((e) => !e);
-            } else {
-              setManualExpanded(false);
-            }
-          }}
-          aria-expanded={expanded}
-          aria-controls={panelId}
-          className={ACCORDION_TRIGGER}
-        >
-          <div className="min-w-0 flex-1">
-            <div className="font-semibold text-black truncate">{displayAddr}</div>
+      {/* ── Mobile ── */}
+      <div className={ADDRESS_CARD_MOBILE_ROOT}>
+        {!expanded ? (
+          /* Summarized state (Figma 8325:7892) */
+          <div className={MOBILE_ADDR_SUMMARY_CONTENT}>
+            <div className={MOBILE_ADDR_SUMMARY_SECTION}>
+              <span className={MOBILE_ADDR_EDIT_SECTION_LABEL}>Recipient</span>
+              <div className={MOBILE_ADDR_LOCKED_RECIPIENT_LINES}>
+                {(a.recipientName || a.phoneNumber) && (
+                  <span className={MOBILE_ADDR_LOCKED_VALUE}>
+                    {[a.recipientName, a.phoneNumber].filter(Boolean).join(", ")}
+                  </span>
+                )}
+                <span className={`${MOBILE_ADDR_LOCKED_VALUE}${geocodeFailed || outOfRegionFailed ? ` ${MOBILE_ADDR_LOCKED_GEOCODE_ERROR}` : ""}`}>
+                  {a.recipientAddress || "—"}
+                </span>
+              </div>
+            </div>
+            <div className={MOBILE_ADDR_SUMMARY_ACTION_BAR}>
+              <button
+                type="button"
+                onClick={() => setManualExpanded(true)}
+                className={MOBILE_ADDR_SUMMARY_EXPAND_BTN}
+                aria-label="Expand address card"
+                aria-expanded={false}
+                aria-controls={panelId}
+              >
+                Expand
+                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+                  <path d="M12 12.6L16.6 8L18 9.4L12 15.4L6 9.4L7.4 8L12 12.6Z" fill="var(--edit-primary-icon)" />
+                </svg>
+              </button>
+              <div className={MOBILE_ADDR_EDIT_ICON_BTNS_GROUP}>
+                <EditIconButton onClick={() => unlockAddress(a.id)} />
+                <DeleteIconButton onClick={() => deleteAddress(a.id)} />
+              </div>
+            </div>
           </div>
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 20 20"
-            fill="none"
-            className={`shrink-0 text-black transition-transform mt-0.5 ${expanded ? "rotate-180" : ""}`}
-            aria-hidden
-          >
-            <path d="M5 7.5L10 12.5L15 7.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-          </svg>
-        </button>
-
-        {expanded && (
-          <div id={panelId} role="region" className="p-4 space-y-3">
+        ) : (
+          <div id={panelId} role="region" className={MOBILE_ADDR_EXPANDED_PANEL}>
             {a.locked ? (
-              <>
-                <div>
-                  <span className={MOBILE_FIELD_LABEL}>Name</span>
-                  <button type="button" onClick={() => unlockAddress(a.id)} className={`${MOBILE_ADDRESS_LOCKED_ROW} ${MOBILE_LOCKED_CLICKABLE}`}>
-                    <span className="text-sm text-black truncate">{a.recipientName || "—"}</span>
+              <div className={MOBILE_ADDR_CARD_EDIT_CONTENT}>
+
+                {/* Recipient */}
+                <div className={MOBILE_ADDR_EDIT_SECTION}>
+                  <span className={MOBILE_ADDR_EDIT_SECTION_LABEL}>Recipient</span>
+                  <button type="button" onClick={() => unlockAddress(a.id)} className={MOBILE_ADDR_LOCKED_FIELD_BTN}>
+                    <div className={MOBILE_ADDR_LOCKED_RECIPIENT_LINES}>
+                      {(a.recipientName || a.phoneNumber) && (
+                        <span className={MOBILE_ADDR_LOCKED_VALUE}>
+                          {[a.recipientName, a.phoneNumber].filter(Boolean).join(", ")}
+                        </span>
+                      )}
+                      <span className={`${MOBILE_ADDR_LOCKED_VALUE}${geocodeFailed || outOfRegionFailed ? ` ${MOBILE_ADDR_LOCKED_GEOCODE_ERROR}` : ""}`}>
+                        {a.recipientAddress || "—"}
+                      </span>
+                    </div>
                   </button>
                 </div>
-                <div>
-                  <span className={MOBILE_FIELD_LABEL}>Phone</span>
-                  <button type="button" onClick={() => unlockAddress(a.id)} className={`${MOBILE_ADDRESS_LOCKED_ROW} ${MOBILE_LOCKED_CLICKABLE}`}>
-                    <span className="text-sm text-black truncate">{a.phoneNumber || "—"}</span>
-                  </button>
-                </div>
-                <div>
-                  <span className={MOBILE_FIELD_LABEL}>Address</span>
-                  <button type="button" onClick={() => { unlockAddress(a.id); setOverlayOpen(true); }} className={`${MOBILE_ADDRESS_LOCKED_ROW} ${MOBILE_LOCKED_CLICKABLE}${geocodeFailed || outOfRegionFailed ? ` ${GEOCODE_ERROR_LOCKED}` : ""}`}>
-                    <span className="text-sm text-black truncate">{a.recipientAddress}</span>
-                  </button>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <span className={MOBILE_FIELD_LABEL}>Delivery estimation</span>
-                    <button type="button" onClick={() => unlockAddress(a.id)} className={`${MOBILE_ADDRESS_LOCKED_ROW} ${MOBILE_LOCKED_CLICKABLE}`}>
-                      <span className="text-sm text-black truncate">{a.timeBuffer > 0 ? `${a.timeBuffer} min` : "—"}</span>
+
+                {/* Delivery Info */}
+                <div className={MOBILE_ADDR_EDIT_DELIVERY_INFO_ROW}>
+                  <div className={MOBILE_ADDR_EDIT_DELIVERY_GROUP}>
+                    <span className={MOBILE_ADDR_EDIT_SECTION_LABEL}>Quantity</span>
+                    <button type="button" onClick={() => unlockAddress(a.id)} className={MOBILE_ADDR_LOCKED_FIELD_BTN}>
+                      <span className={MOBILE_ADDR_LOCKED_VALUE}>{a.deliveryQuantity || "—"}</span>
                     </button>
                   </div>
-                  <div className="flex min-w-0 flex-col gap-1">
-                    <span className={MOBILE_FIELD_LABEL}>Delivery time</span>
-                    <button type="button" onClick={() => unlockAddress(a.id)} className={`${MOBILE_ADDRESS_LOCKED_ROW} ${MOBILE_LOCKED_CLICKABLE}`}>
-                      <span className="text-sm text-black truncate">
-                        {a.deliveryTimeStart && a.deliveryTimeEnd
-                          ? `${a.deliveryTimeStart} – ${a.deliveryTimeEnd}`
-                          : a.deliveryTimeStart || a.deliveryTimeEnd || "—"}
+                  <div className={MOBILE_ADDR_EDIT_DELIVERY_GROUP}>
+                    <span className={MOBILE_ADDR_EDIT_SECTION_LABEL}>Delivery estimation</span>
+                    <button type="button" onClick={() => unlockAddress(a.id)} className={MOBILE_ADDR_LOCKED_FIELD_BTN}>
+                      <span className={MOBILE_ADDR_LOCKED_VALUE}>
+                        {a.timeBuffer > 0 ? `${a.timeBuffer} minutes` : "—"}
                       </span>
                     </button>
                   </div>
                 </div>
-                <div>
-                  <span className={MOBILE_FIELD_LABEL}>Quantity</span>
-                  <button type="button" onClick={() => unlockAddress(a.id)} className={`${MOBILE_ADDRESS_LOCKED_ROW} ${MOBILE_LOCKED_CLICKABLE}`}>
-                    <span className="text-sm text-black truncate">{a.deliveryQuantity}</span>
+
+                {/* Schedule Delivery */}
+                <div className={MOBILE_ADDR_EDIT_SECTION}>
+                  <span className={MOBILE_ADDR_EDIT_SECTION_LABEL}>Schedule Delivery</span>
+                  <button type="button" onClick={() => unlockAddress(a.id)} className={MOBILE_ADDR_LOCKED_FIELD_BTN}>
+                    <span className={MOBILE_ADDR_LOCKED_VALUE}>
+                      {a.deliveryTimeStart && a.deliveryTimeEnd
+                        ? `${a.deliveryTimeStart} – ${a.deliveryTimeEnd}`
+                        : a.deliveryTimeStart || a.deliveryTimeEnd || "—"}
+                    </span>
                   </button>
                 </div>
-                <div>
-                  <span className={MOBILE_FIELD_LABEL}>Notes</span>
-                  <button type="button" onClick={() => unlockAddress(a.id)} className={`${MOBILE_ADDRESS_NOTES_AREA} ${MOBILE_LOCKED_CLICKABLE}`}>
-                    <span className="text-sm text-black leading-6 line-clamp-6">{a.notes}</span>
+
+                {/* Notes */}
+                <div className={MOBILE_ADDR_EDIT_SECTION}>
+                  <span className={MOBILE_ADDR_EDIT_SECTION_LABEL}>Notes</span>
+                  <button type="button" onClick={() => unlockAddress(a.id)} className={MOBILE_ADDR_LOCKED_FIELD_BTN}>
+                    <span className={MOBILE_ADDR_LOCKED_NOTES_CLAMP}>
+                      {a.notes || "—"}
+                    </span>
                   </button>
                 </div>
-                <div className="flex gap-2 pt-2">
-                  <button type="button" onClick={() => unlockAddress(a.id)} className={PILL_ROW_HALF_NEUTRAL}>
-                    Edit
+
+                {/* Action bar */}
+                <div className={MOBILE_ADDR_EDIT_ACTION_BAR}>
+                  <button type="button" onClick={() => setManualExpanded(false)} className={MOBILE_ADDR_EDIT_COLLAPSE_BTN} aria-label="Collapse card">
+                    <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden>
+                      <path d="M12 11.4L7.4 16L6 14.6L12 8.6L18 14.6L16.6 16L12 11.4Z" fill="var(--edit-primary-icon)" />
+                    </svg>
+                    Collapse
                   </button>
-                  <button type="button" onClick={() => deleteAddress(a.id)} className={PILL_ROW_HALF_DANGER}>
-                    Delete
-                  </button>
+                  <div className={MOBILE_ADDR_EDIT_ICON_BTNS_GROUP}>
+                    <EditIconButton onClick={() => unlockAddress(a.id)} />
+                    <DeleteIconButton onClick={() => deleteAddress(a.id)} />
+                  </div>
                 </div>
-              </>
+
+              </div>
             ) : (
-              <>
-                <div>
-                  <span className={MOBILE_FIELD_LABEL}>Name</span>
-                  <input
-                    value={a.recipientName}
-                    onChange={(e) => updateAddress(a.id, "recipientName", e.target.value)}
-                    placeholder="First and last name"
-                    aria-label="Recipient name"
-                    className={mobileInputClass(false)}
-                  />
-                </div>
-                <div>
-                  <span className={MOBILE_FIELD_LABEL}>Phone</span>
-                  <input
-                    value={a.phoneNumber}
-                    onChange={(e) => updateAddress(a.id, "phoneNumber", formatPhoneNumber(e.target.value))}
-                    placeholder="123-456-7890"
-                    aria-label="Phone number"
-                    type="tel"
-                    inputMode="numeric"
-                    maxLength={12}
-                    className={mobileInputClass(false)}
-                  />
-                </div>
-                <div>
-                  <span className={MOBILE_FIELD_LABEL}>Address</span>
+              <div className={MOBILE_ADDR_CARD_EDIT_CONTENT}>
+
+                {/* Recipient */}
+                <div className={MOBILE_ADDR_EDIT_SECTION}>
+                  <span className={MOBILE_ADDR_EDIT_SECTION_LABEL}>Recipient</span>
+                  <div className={MOBILE_ADDR_EDIT_NAME_ROW}>
+                    <input
+                      value={a.recipientName}
+                      onChange={(e) => updateAddress(a.id, "recipientName", e.target.value)}
+                      placeholder="First and last name"
+                      aria-label="Recipient name"
+                      maxLength={50}
+                      className={ADDRESS_ROW_FIELD_INPUT_FILL}
+                    />
+                    <input
+                      value={a.phoneNumber}
+                      onChange={(e) => updateAddress(a.id, "phoneNumber", formatPhoneNumber(e.target.value))}
+                      placeholder="123-456-7890"
+                      aria-label="Phone number"
+                      type="tel"
+                      inputMode="numeric"
+                      maxLength={12}
+                      className={ADDRESS_ROW_FIELD_INPUT_FILL}
+                    />
+                  </div>
                   <button
                     type="button"
                     onClick={() => setOverlayOpen(true)}
-                    className={`${mobileInputClass(addrInvalid)} text-left cursor-pointer w-full`}
+                    className={addrInvalid ? ADDRESS_ROW_ADDR_WRAP_ERROR : ADDRESS_ROW_ADDR_WRAP}
                     aria-label="Edit recipient address"
                   >
-                    {a.recipientAddress || <span className={ADDRESS_ROW_ADDR_TRIGGER_PLACEHOLDER}>Address</span>}
+                    <span className={ADDRESS_ROW_ADDR_TRIGGER_TEXT}>
+                      {a.recipientAddress || <span className={ADDRESS_ROW_ADDR_TRIGGER_PLACEHOLDER}>Enter address</span>}
+                    </span>
+                    <div className={ADDRESS_ROW_ADDR_GRADIENT} aria-hidden>
+                      <svg viewBox="0 0 24 24" width="24" height="24">
+                        <path className={ADDRESS_ROW_ICON_FILL} d="M14.6 12L10 7.4L11.4 6L17.4 12L11.4 18L10 16.6L14.6 12Z" />
+                      </svg>
+                    </div>
                   </button>
                 </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <span className={MOBILE_FIELD_LABEL}>Delivery estimation</span>
-                    <input
-                      type="number"
-                      min={0}
-                      value={a.timeBuffer || ""}
-                      onChange={(e) => updateAddress(a.id, "timeBuffer", parseInt(e.target.value, 10) || 0)}
-                      aria-label="Delivery estimation in minutes"
-                      placeholder="0"
-                      className={mobileInputClass(false)}
+
+                {/* Delivery Info */}
+                <div className={MOBILE_ADDR_EDIT_DELIVERY_INFO_ROW}>
+                  <div className={MOBILE_ADDR_EDIT_DELIVERY_GROUP}>
+                    <span className={MOBILE_ADDR_EDIT_SECTION_LABEL}>Quantity</span>
+                    <StepperInput
+                      value={a.deliveryQuantity}
+                      min={1}
+                      ariaLabel="Delivery quantity"
+                      onChange={(v) => updateAddress(a.id, "deliveryQuantity", v)}
+                      onIncrement={() => updateAddress(a.id, "deliveryQuantity", (a.deliveryQuantity || 0) + 1)}
+                      onDecrement={() => updateAddress(a.id, "deliveryQuantity", Math.max(1, (a.deliveryQuantity || 1) - 1))}
                     />
                   </div>
-                  <div className="flex min-w-0 flex-col gap-1.5">
-                    <span className={MOBILE_FIELD_LABEL}>Delivery time</span>
-                    <div className="flex items-center gap-1 w-full min-w-0">
+                  <div className={MOBILE_ADDR_EDIT_DELIVERY_GROUP}>
+                    <span className={MOBILE_ADDR_EDIT_SECTION_LABEL}>Delivery Estimation</span>
+                    <div className={MOBILE_ADDR_EDIT_EST_CONTROL}>
+                      <StepperInput
+                        value={a.timeBuffer}
+                        min={0}
+                        ariaLabel="Delivery estimation in minutes"
+                        onChange={(v) => updateAddress(a.id, "timeBuffer", v)}
+                        onIncrement={() => updateAddress(a.id, "timeBuffer", (a.timeBuffer || 0) + 1)}
+                        onDecrement={() => updateAddress(a.id, "timeBuffer", Math.max(0, (a.timeBuffer || 0) - 1))}
+                      />
+                      <span className={ADDRESS_ROW_INLINE_TEXT}>minutes</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Schedule Delivery */}
+                <div className={MOBILE_ADDR_EDIT_SECTION}>
+                  <span className={MOBILE_ADDR_EDIT_SECTION_LABEL}>Schedule Delivery</span>
+                  <div className={MOBILE_ADDR_EDIT_SCHEDULE_ROW}>
+                    <div className={MOBILE_ADDR_EDIT_TIME_SELECT_WRAP}>
                       <select
                         value={a.deliveryTimeStart}
                         onChange={(e) => {
@@ -547,15 +597,23 @@ export default function AddressCard({
                             updateAddress(a.id, "deliveryTimeEnd", "");
                           }
                         }}
-                        className={`${mobileSelectClass(false)} flex-1 min-w-0`}
                         aria-label="Delivery time start"
+                        className={ADDRESS_ROW_TIME_SELECT}
                       >
-                        <option value="">None</option>
+                        <option value="">Start</option>
                         {TIME_OPTIONS.filter((_, i) => endIdx === -1 || i < endIdx).map((t) => (
                           <option key={t} value={t}>{t}</option>
                         ))}
                       </select>
-                      <span className="shrink-0 text-zinc-400 text-xs" aria-hidden>–</span>
+                      <span className={ADDRESS_ROW_TIME_SELECT_TEXT}>
+                        {a.deliveryTimeStart || "Start"}
+                      </span>
+                      <svg viewBox="0 0 24 24" width="24" height="24" className={ADDRESS_ROW_TIME_SELECT_CHEVRON} aria-hidden>
+                        <path className={ADDRESS_ROW_ICON_FILL} d="M14.6 12L10 7.4L11.4 6L17.4 12L11.4 18L10 16.6L14.6 12Z" />
+                      </svg>
+                    </div>
+                    <span className={ADDRESS_ROW_INLINE_TEXT} aria-hidden>–</span>
+                    <div className={MOBILE_ADDR_EDIT_TIME_SELECT_WRAP}>
                       <select
                         value={a.deliveryTimeEnd}
                         onChange={(e) => {
@@ -565,54 +623,44 @@ export default function AddressCard({
                             updateAddress(a.id, "deliveryTimeStart", "");
                           }
                         }}
-                        className={`${mobileSelectClass(false)} flex-1 min-w-0`}
                         aria-label="Delivery time end"
+                        className={ADDRESS_ROW_TIME_SELECT}
                       >
-                        <option value="">None</option>
+                        <option value="">End</option>
                         {TIME_OPTIONS.filter((_, i) => startIdx === -1 || i > startIdx).map((t) => (
                           <option key={t} value={t}>{t}</option>
                         ))}
                       </select>
+                      <span className={ADDRESS_ROW_TIME_SELECT_TEXT}>
+                        {a.deliveryTimeEnd || "End"}
+                      </span>
+                      <svg viewBox="0 0 24 24" width="24" height="24" className={ADDRESS_ROW_TIME_SELECT_CHEVRON} aria-hidden>
+                        <path className={ADDRESS_ROW_ICON_FILL} d="M14.6 12L10 7.4L11.4 6L17.4 12L11.4 18L10 16.6L14.6 12Z" />
+                      </svg>
                     </div>
                   </div>
                 </div>
-                <div>
-                  <span className={MOBILE_FIELD_LABEL}>Quantity</span>
-                  <input
-                    type="number"
-                    min={0}
-                    value={a.deliveryQuantity || ""}
-                    onChange={(e) =>
-                      updateAddress(a.id, "deliveryQuantity", e.target.value === "" ? 0 : parseInt(e.target.value, 10) || 0)
-                    }
-                    aria-label="Delivery quantity"
-                    className={mobileInputClass(qtyInvalid)}
-                  />
+
+                {/* Notes */}
+                <div className={MOBILE_ADDR_EDIT_SECTION}>
+                  <span className={MOBILE_ADDR_EDIT_SECTION_LABEL}>Notes</span>
+                  <div className={MOBILE_ADDR_EDIT_NOTES_WRAP}>
+                    <AutoResizeNotesTextarea
+                      value={a.notes}
+                      onChange={(value) => updateAddress(a.id, "notes", value)}
+                    />
+                  </div>
                 </div>
-                <div>
-                  <span className={MOBILE_FIELD_LABEL}>Notes</span>
-                  <textarea
-                    value={a.notes}
-                    onChange={(e) => updateAddress(a.id, "notes", e.target.value)}
-                    aria-label="Notes"
-                    rows={5}
-                    className={MOBILE_ADDRESS_NOTES_TEXTAREA}
-                  />
+
+                {/* Action bar */}
+                <div className={MOBILE_ADDR_EDIT_ACTION_BAR_END}>
+                  <div className={MOBILE_ADDR_EDIT_ICON_BTNS_GROUP}>
+                    <ConfirmIconButton onClick={() => confirmAddress(a.id)} />
+                    <DeleteIconButton onClick={() => deleteAddress(a.id)} />
+                  </div>
                 </div>
-                {a.editingExisting && (
-                  <button type="button" onClick={() => confirmAddress(a.id)} className={CONFIRM_PILL_MOBILE}>
-                    Confirm
-                  </button>
-                )}
-                <hr className="border-zinc-200" />
-                <button
-                  type="button"
-                  onClick={() => deleteAddress(a.id)}
-                  className={MOBILE_DELETE_TEXT}
-                >
-                  Delete
-                </button>
-              </>
+
+              </div>
             )}
           </div>
         )}

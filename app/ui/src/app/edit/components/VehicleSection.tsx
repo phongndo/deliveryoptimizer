@@ -23,6 +23,8 @@ import {
   VEHICLE_SECTION_HEADER,
   VEHICLE_SECTION_HEADING,
   VEHICLE_SECTION_SUBHEADING,
+  MOBILE_EMPTY_STATE_CONTAINER,
+  VEHICLE_MOBILE_LIST,
 } from "../formStyles.v2";
 
 const BLANK_VEHICLE: VehicleRowType = {
@@ -45,8 +47,6 @@ type VehicleSectionProps = {
   markAllAvailable: () => void;
   updateVehicle: <K extends keyof VehicleRowType>(id: number, key: K, value: VehicleRowType[K]) => void;
   deleteVehicle: (id: number) => void;
-  unlockVehicle: (id: number) => void;
-  confirmVehicle: (id: number) => void;
   touchedIds: Set<number>;
   allVehiclesLocked: boolean;
   activeVehicleIsValid: boolean;
@@ -60,8 +60,6 @@ export default function VehicleSection({
   markAllAvailable,
   updateVehicle,
   deleteVehicle,
-  unlockVehicle,
-  confirmVehicle,
   touchedIds,
   allVehiclesLocked,
   activeVehicleIsValid,
@@ -134,8 +132,6 @@ export default function VehicleSection({
                 vehicle={v}
                 updateVehicle={updateVehicle}
                 deleteVehicle={handleDeleteRequest}
-                unlockVehicle={unlockVehicle}
-                confirmVehicle={confirmVehicle}
                 onEditVehicle={setEditingVehicle}
                 vehicleTouched={touchedIds.has(v.id)}
                 geocodeFailed={geocodeFailedSet.has(v.id)}
@@ -146,27 +142,31 @@ export default function VehicleSection({
         </div>
       </div>
 
-      {/* Mobile: stacked cards */}
-      <div className="lg:hidden space-y-6">
-        {vehicles.length === 0 ? (
+      {/* Mobile: bordered empty state */}
+      {vehicles.length === 0 && (
+        <div className={MOBILE_EMPTY_STATE_CONTAINER}>
           <VehicleEmptyState />
-        ) : (
-          vehicles.map((v) => (
+        </div>
+      )}
+
+      {/* Mobile: stacked cards */}
+      {vehicles.length > 0 && (
+        <div className={VEHICLE_MOBILE_LIST}>
+          {vehicles.map((v) => (
             <VehicleRow
               key={`vehicle-mobile-${v.id}`}
               layout="mobile"
               vehicle={v}
               updateVehicle={updateVehicle}
               deleteVehicle={handleDeleteRequest}
-              unlockVehicle={unlockVehicle}
-              confirmVehicle={confirmVehicle}
+              onEditVehicle={setEditingVehicle}
               vehicleTouched={touchedIds.has(v.id)}
               geocodeFailed={geocodeFailedSet.has(v.id)}
               outOfRegionFailed={outOfRegionSet.has(v.id)}
             />
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
 
       {isAddOverlayOpen && (
         <VehicleDetailsOverlay

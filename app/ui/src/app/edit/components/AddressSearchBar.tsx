@@ -2,6 +2,7 @@
 
 import {
   ADDRESS_SEARCH_BAR,
+  ADDRESS_SEARCH_BAR_COMPACT,
   ADDRESS_SEARCH_BAR_DESKTOP,
   ADDRESS_SEARCH_ICON,
   ADDRESS_SEARCH_INPUT,
@@ -11,14 +12,19 @@ type Props = {
   value: string;
   onChange: (value: string) => void;
   className?: string;
-  variant?: "mobile" | "desktop";
+  variant?: "default" | "compact" | "desktop";
 };
 
-export default function AddressSearchBar({ value, onChange, className, variant = "mobile" }: Props) {
-  const containerClass = variant === "desktop" ? ADDRESS_SEARCH_BAR_DESKTOP : ADDRESS_SEARCH_BAR;
+export default function AddressSearchBar({ value, onChange, className, variant = "default" }: Props) {
+  const baseClass =
+    variant === "desktop"
+      ? ADDRESS_SEARCH_BAR_DESKTOP
+      : variant === "compact"
+        ? ADDRESS_SEARCH_BAR_COMPACT
+        : ADDRESS_SEARCH_BAR;
 
   return (
-    <div className={`${containerClass}${className ? ` ${className}` : ""}`}>
+    <div className={`${baseClass}${className ? ` ${className}` : ""}`}>
       <svg
         className={ADDRESS_SEARCH_ICON}
         viewBox="0 0 24 24"

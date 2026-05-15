@@ -623,6 +623,7 @@ export default function AddressCard({
       {overlayOpen && (
         <AddressOverlay
           heading="Enter Address"
+          primaryLabel="Confirm"
           initialAddress={parseRecipientAddress(a.recipientAddress)}
           onClose={() => setOverlayOpen(false)}
           onSave={(addr: LocationAddress) => {

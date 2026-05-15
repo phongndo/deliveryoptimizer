@@ -81,6 +81,7 @@ export type LocationAddress = {
 
 type AddressOverlayProps = {
   heading: string;
+  primaryLabel?: string;
   initialAddress?: Partial<LocationAddress>;
   onClose: () => void;
   onSave: (address: LocationAddress) => void;
@@ -88,6 +89,7 @@ type AddressOverlayProps = {
 
 export default function AddressOverlay({
   heading,
+  primaryLabel = "Optimize",  // Default label, overwritten by "Confirm" when called by AddressCard
   initialAddress,
   onClose,
   onSave,
@@ -180,13 +182,13 @@ export default function AddressOverlay({
         className={OVERLAY_PANEL}
         role="dialog"
         aria-modal="true"
-        aria-labelledby="start-location-overlay-title"
+        aria-labelledby="address-overlay-title"
         tabIndex={-1}
       >
         <div className={OVERLAY_BODY}>
           {/* Header */}
           <div className={OVERLAY_HEADER}>
-            <h2 id="start-location-overlay-title" className={OVERLAY_TITLE}>
+            <h2 id="address-overlay-title" className={OVERLAY_TITLE}>
               {heading}
             </h2>
             <button
@@ -350,7 +352,7 @@ export default function AddressOverlay({
             Cancel
           </button>
           <button type="button" onClick={handleSave} className={`${OVERLAY_PRIMARY_BTN} ${styles.primaryBtnOverlay}`}>
-            Optimize
+            {primaryLabel}
           </button>
         </div>
       </div>

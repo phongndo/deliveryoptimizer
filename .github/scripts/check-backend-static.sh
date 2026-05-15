@@ -28,5 +28,8 @@ clang-tidy -p "$build_dir" "${backend_cpp_files[@]}"
 
 echo "Checking backend LSP diagnostics with clangd..."
 for source in "${backend_cpp_files[@]}"; do
-  clangd --check="$source" --compile-commands-dir="$build_dir"
+  # clangd 18's ExtractFunction tweak can report internal, non-diagnostic
+  # failures for valid control-flow while running --check. Keep the LSP parse
+  # diagnostics enabled, but skip that flaky tweak in CI.
+  clangd --check="$source" --compile-commands-dir="$build_dir" --tweaks=-ExtractFunction
 done

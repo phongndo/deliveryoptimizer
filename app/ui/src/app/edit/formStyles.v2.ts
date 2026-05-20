@@ -109,15 +109,15 @@ export const NAVBAR_V2_BTN_OUTLINE =
   "h-9 px-4 rounded-[80px] border border-[var(--edit-stone-700)] font-semibold text-[14px] leading-5 text-[var(--edit-text-primary)] whitespace-nowrap hover:bg-[var(--edit-secondary-btn-hover)] active:bg-[var(--edit-secondary-btn-pressed)] transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
 
 export const NAVBAR_V2_BTN_FILLED =
-  "h-9 px-4 rounded-[80px] bg-[var(--edit-btn-primary)] font-semibold text-[14px] leading-5 text-[var(--edit-text-primary)] whitespace-nowrap cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed";
+  "h-9 px-4 rounded-[80px] bg-[var(--edit-btn-primary)] font-semibold text-[14px] leading-5 text-[var(--edit-text-primary)] whitespace-nowrap cursor-pointer disabled:cursor-not-allowed";
 
 export const PAGE_V2_ROOT =
-  "min-h-screen flex flex-col bg-[var(--edit-stone-50)] font-sans-manrope";
+  "min-h-screen lg:h-screen flex flex-col bg-[var(--edit-stone-50)] font-sans-manrope";
 
-export const PAGE_V2_BODY = "flex flex-1 lg:min-h-0";
+export const PAGE_V2_BODY = "flex flex-1 lg:min-h-0 lg:overflow-hidden";
 
 export const PAGE_V2_MAIN =
-  "flex-1 min-w-0 bg-[var(--edit-bg-primary)] border-t-0 lg:border-t border-l-0 lg:border-l border-[var(--edit-stone-200)] rounded-none lg:rounded-tl-[12px] p-6 pb-[136px] lg:pb-6 space-y-16";
+  "flex-1 min-w-0 bg-[var(--edit-bg-primary)] border-t-0 lg:border-t border-l-0 lg:border-l border-[var(--edit-stone-200)] rounded-none lg:rounded-tl-[12px] p-6 pb-[136px] lg:pb-6 lg:overflow-y-auto space-y-16";
 
 export const VEHICLE_INFO_CONTAINER =
   "hidden lg:flex flex-col gap-4 border border-[var(--edit-stone-200)] rounded-[8px] overflow-hidden p-4";
@@ -161,10 +161,10 @@ export const VEHICLE_ROW_STATUS_CELL =
   "min-w-0 h-[38px] flex items-center overflow-hidden";
 
 export const VEHICLE_ROW_STATUS_BADGE_AVAILABLE =
-  "bg-[var(--edit-container-success)] flex items-center overflow-hidden px-2 py-[7px] rounded-[4px]";
+  "bg-[var(--edit-container-success)] flex items-center overflow-hidden px-2 py-[7px] rounded-[4px] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--edit-teal-300)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--edit-bg-primary)]";
 
 export const VEHICLE_ROW_STATUS_BADGE_IN_USE =
-  "bg-[var(--edit-stone-50)] flex items-center overflow-hidden p-[8px] rounded-[4px]";
+  "bg-[var(--edit-stone-50)] flex items-center overflow-hidden p-[8px] rounded-[4px] cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--edit-teal-300)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--edit-bg-primary)]";
 
 export const VEHICLE_ROW_STATUS_TEXT_AVAILABLE =
   "font-semibold text-[16px] leading-[22px] text-[var(--edit-text-success)] whitespace-nowrap";

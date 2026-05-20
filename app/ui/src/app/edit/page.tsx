@@ -5,43 +5,46 @@
  * Delivery edit screen: wires vehicle and address state into sections and pagination.
  */
 
-import styles from "./edit.module.css";
-import Navbar from "./components/Navbar";
-import MobileNavbar from "./components/MobileNavbar";
-import MobileSidebar from "./components/MobileSidebar";
-import OptimizingModal from "./components/OptimizingModal";
-import Sidebar from "./components/Sidebar/Sidebar";
-import SidebarEditButton from "./components/Sidebar/SidebarEditButton";
-import SidebarResultsButton from "./components/Sidebar/SidebarResultsButton";
+import styles from "@/app/edit/edit.module.css";
+import Navbar from "@/app/edit/components/layout/navbar/Navbar";
+import MobileNavbar from "@/app/edit/components/layout/navbar/MobileNavbar";
+import MobileSidebar from "@/app/edit/components/layout/sidebar/MobileSidebar";
+import OptimizingModal from "@/app/edit/components/shared/OptimizingModal";
+import Sidebar from "@/app/edit/components/layout/sidebar/Sidebar";
+import SidebarEditButton from "@/app/edit/components/layout/sidebar/SidebarEditButton";
+import SidebarResultsButton from "@/app/edit/components/layout/sidebar/SidebarResultsButton";
 import {
   PAGE_V2_ROOT,
   PAGE_V2_BODY,
   PAGE_V2_MAIN,
   ADDRESS_SECTION_WITH_PAGINATION,
-} from "./formStyles.v2";
-import VehicleSection from "./components/VehicleSection";
-import AddressSection from "./components/AddressSection";
-import AddressPagination from "./components/AddressPagination";
-import AddressPaginationMobile from "./components/AddressPaginationMobile";
-import EditPageFooter from "./components/EditPageFooter";
-import MobileEditPageFooter from "./components/MobileEditPageFooter";
-import MobileBottomBar from "./components/MobileBottomBar";
-import { useVehicles } from "./hooks/useVehicles";
-import { useAddresses } from "./hooks/useAddresses";
-import { useOptimize } from "./hooks/useOptimize";
-import { parseAddressUpload, useCSVUpload } from "./hooks/useCSVUpload";
+} from "@/app/edit/formStyles.v2";
+import VehicleSection from "@/app/edit/components/vehicle/VehicleSection";
+import AddressSection from "@/app/edit/components/address/AddressSection";
+import AddressPagination from "@/app/edit/components/address/AddressPagination";
+import AddressPaginationMobile from "@/app/edit/components/address/AddressPaginationMobile";
+import EditPageFooter from "@/app/edit/components/layout/footer/EditPageFooter";
+import MobileEditPageFooter from "@/app/edit/components/layout/footer/MobileEditPageFooter";
+import MobileBottomBar from "@/app/edit/components/layout/navbar/MobileBottomBar";
+import { useVehicles } from "@/app/edit/hooks/useVehicles";
+import { useAddresses } from "@/app/edit/hooks/useAddresses";
+import { useOptimize } from "@/app/edit/hooks/useOptimize";
+import {
+  parseAddressUpload,
+  useCSVUpload,
+} from "@/app/edit/hooks/useCSVUpload";
 import { useCallback, useEffect, useState } from "react";
-import type { AddressCard } from "./types/delivery";
+import type { AddressCard } from "@/app/edit/types/delivery";
 import { loadSessionFromFile } from "@/lib/session/importSession";
 import { downloadSessionSave } from "@/lib/session/exportSession";
 import {
   mapEditStateToOptimizeRequest,
   mapOptimizeRequestToEditState,
-} from "./utils/sessionMapper";
+} from "@/app/edit/utils/sessionMapper";
 import { useRouter } from "next/navigation";
 import AddressOverlay, {
   type LocationAddress,
-} from "./components/AddressOverlay";
+} from "@/app/edit/components/address/AddressOverlay";
 
 type StoredUploadFile = {
   name: string;

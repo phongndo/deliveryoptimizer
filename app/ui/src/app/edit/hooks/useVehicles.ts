@@ -3,7 +3,7 @@
  */
 
 import { useState, useCallback } from "react";
-import type { VehicleRow } from "../types/delivery";
+import type { VehicleRow } from "@/app/edit/types/delivery";
 
 function isVehicleValid(v: VehicleRow): boolean {
   return (

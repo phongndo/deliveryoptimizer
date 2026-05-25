@@ -108,7 +108,7 @@ void RegisterDeliveriesOptimizeEndpoint(drogon::HttpAppFramework& app,
 
   app.registerHandler(
       "/api/v1/deliveries/optimize",
-      [coordinator = std::move(coordinator), runner = std::move(runner), weather_options,
+      [coordinator = std::move(coordinator), weather_options,
        observability = std::move(observability)](
           const drogon::HttpRequestPtr& request,
           std::function<void(const drogon::HttpResponsePtr&)>&& callback) {
@@ -176,21 +176,40 @@ void RegisterDeliveriesOptimizeEndpoint(drogon::HttpAppFramework& app,
         };
         const SolveAdmissionStatus admission_status = coordinator->Submit(
             request_size, [optimize_request_ptr] { return BuildVroomInput(*optimize_request_ptr); },
-            [optimize_request_ptr, runner, weather_options,
+            [coordinator, optimize_request_ptr, request_size, weather_options,
              respond_with_completion](const CoordinatedSolveResult& result) mutable {
-              CoordinatedSolveResult final_result = result;
               std::optional<Json::Value> forecast;
-              if (result.output.has_value()) {
-                const WeatherImpactEstimate impact = RecalculateWeatherImpact(
-                    weather_options, *optimize_request_ptr, *result.output);
-                forecast = BuildWeatherForecastAnnotation(weather_options, impact);
-                if (impact.should_reoptimize) {
-                  final_result = ToCoordinatedSolveResult(
-                      runner->Run(BuildWeatherAdjustedVroomInput(*optimize_request_ptr, impact)));
-                }
+              if (!result.output.has_value()) {
+                respond_with_completion(BuildSolveExecutionResponse(
+                    BuildSolveExecutionResult(*optimize_request_ptr, result, forecast)));
+                return;
               }
-              respond_with_completion(BuildSolveExecutionResponse(
-                  BuildSolveExecutionResult(*optimize_request_ptr, final_result, forecast)));
+
+              WeatherForecastOptions sync_weather_options = weather_options;
+              sync_weather_options.openweather_api_key.clear();
+              const WeatherImpactEstimate impact =
+                  RecalculateWeatherImpact(sync_weather_options, *optimize_request_ptr,
+                                           *result.output);
+              forecast = BuildWeatherForecastAnnotation(sync_weather_options, impact);
+              if (!impact.should_reoptimize) {
+                respond_with_completion(BuildSolveExecutionResponse(
+                    BuildSolveExecutionResult(*optimize_request_ptr, result, forecast)));
+                return;
+              }
+
+              const SolveAdmissionStatus rerun_status = coordinator->Submit(
+                  request_size,
+                  [optimize_request_ptr, impact] {
+                    return BuildWeatherAdjustedVroomInput(*optimize_request_ptr, impact);
+                  },
+                  [optimize_request_ptr, forecast, respond_with_completion](
+                      const CoordinatedSolveResult& rerun_result) mutable {
+                    respond_with_completion(BuildSolveExecutionResponse(BuildSolveExecutionResult(
+                        *optimize_request_ptr, rerun_result, forecast)));
+                  });
+              if (rerun_status != SolveAdmissionStatus::kAccepted) {
+                respond_with_completion(BuildAdmissionRejectionResponse(rerun_status));
+              }
             },
             lifecycle);
         if (admission_status != SolveAdmissionStatus::kAccepted) {

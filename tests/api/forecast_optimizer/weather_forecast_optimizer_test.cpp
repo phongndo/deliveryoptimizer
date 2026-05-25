@@ -55,6 +55,13 @@ namespace {
   return hour;
 }
 
+[[nodiscard]] Json::Value BuildRainyThunderHour() {
+  Json::Value hour = BuildWeatherHour(0, 201);
+  hour["rain"] = Json::Value{Json::objectValue};
+  hour["rain"]["1h"] = 2.0;
+  return hour;
+}
+
 } // namespace
 
 TEST(WeatherForecastOptimizerTest, DisabledWeatherHasNoImpact) {
@@ -193,6 +200,16 @@ TEST(WeatherForecastOptimizerTest, ReadsBadOpenWeatherHourNearRouteStart) {
   EXPECT_EQ(delay, 240);
 }
 
+TEST(WeatherForecastOptimizerTest, ThunderDoesNotAlsoChargeRainDelay) {
+  Json::Value body{Json::objectValue};
+  body["hourly"] = Json::Value{Json::arrayValue};
+  body["hourly"].append(BuildRainyThunderHour());
+
+  const int delay = deliveryoptimizer::api::ReadOpenWeatherDelay(body);
+
+  EXPECT_EQ(delay, 240);
+}
+
 TEST(WeatherForecastOptimizerTest, RefinesForecastWithVroomSummaryDuration) {
   auto input = BuildInput();
   input.vehicles[0].time_window = deliveryoptimizer::api::TimeWindow{
@@ -216,11 +233,11 @@ TEST(WeatherForecastOptimizerTest, RefinesForecastWithVroomSummaryDuration) {
   const Json::Value forecast =
       deliveryoptimizer::api::BuildWeatherForecastAnnotation(options, impact);
 
-  EXPECT_EQ(forecast["baseline_duration_seconds"].asInt(), 960);
+  EXPECT_FALSE(forecast.isMember("baseline_duration_seconds"));
   EXPECT_EQ(forecast["baseline_route_duration_seconds"].asInt(), 960);
   EXPECT_EQ(forecast["weather_delay_seconds"].asInt(), 400);
   EXPECT_EQ(forecast["weather_adjusted_duration_seconds"].asInt(), 1360);
-  EXPECT_EQ(forecast["predicted_duration_seconds"].asInt(), 1360);
+  EXPECT_FALSE(forecast.isMember("predicted_duration_seconds"));
   EXPECT_EQ(forecast["planned_start_time"].asInt64(), 600);
   EXPECT_EQ(forecast["estimated_finish_time"].asInt64(), 1960);
 }

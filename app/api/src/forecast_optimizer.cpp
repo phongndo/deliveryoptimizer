@@ -110,31 +110,30 @@ constexpr double kDefaultWeatherThresholdPercent = 5.0;
   int delay_seconds = 0;
   const double wind_speed = hour["wind_speed"].isNumeric() ? hour["wind_speed"].asDouble() : 0.0;
   const int visibility = hour["visibility"].isInt() ? hour["visibility"].asInt() : 10000;
-  if (wind_speed >= 10.0) {
-    delay_seconds += 60;
-  }
-  if (visibility < 5000) {
-    delay_seconds += 60;
-  }
-  if (hour["rain"].isObject()) {
-    delay_seconds += 90;
-  }
-  if (hour["snow"].isObject()) {
-    delay_seconds += 180;
-  }
-
+  bool has_thunder = false;
   const Json::Value& weather = hour["weather"];
   if (weather.isArray()) {
-    bool has_thunder = false;
     for (const Json::Value& condition : weather) {
       const int condition_id = condition["id"].isInt() ? condition["id"].asInt() : 0;
       if (condition_id >= 200 && condition_id < 300) {
         has_thunder = true;
       }
     }
-    if (has_thunder) {
-      delay_seconds += 240;
-    }
+  }
+
+  if (wind_speed >= 10.0) {
+    delay_seconds += 60;
+  }
+  if (visibility < 5000) {
+    delay_seconds += 60;
+  }
+  if (has_thunder) {
+    delay_seconds += 240;
+  } else if (hour["rain"].isObject()) {
+    delay_seconds += 90;
+  }
+  if (hour["snow"].isObject()) {
+    delay_seconds += 180;
   }
 
   return delay_seconds;
@@ -154,9 +153,9 @@ constexpr double kDefaultWeatherThresholdPercent = 5.0;
          forecast_time < route_start_time + std::chrono::seconds{window_seconds};
 }
 
-void SetRouteTimes(const deliveryoptimizer::api::OptimizeRequestInput& input,
+void SetRouteTimes(const std::optional<std::chrono::sys_seconds> planned_start_time,
                    deliveryoptimizer::api::WeatherImpactEstimate& impact) {
-  impact.planned_start_time = deliveryoptimizer::api::ReadRouteStartTime(input);
+  impact.planned_start_time = planned_start_time;
   if (!impact.planned_start_time.has_value()) {
     impact.estimated_finish_time = std::nullopt;
     return;
@@ -344,15 +343,16 @@ WeatherImpactEstimate EstimateRouteWeatherImpact(const WeatherForecastOptions& o
   WeatherForecastOptions effective_options = options;
   WeatherImpactEstimate impact =
       EstimateWeatherImpact(effective_options, input.jobs.size(), baseline_duration_seconds);
-  SetRouteTimes(input, impact);
+  const std::optional<std::chrono::sys_seconds> route_start_time = ReadRouteStartTime(input);
+  SetRouteTimes(route_start_time, impact);
   const OpenWeatherDelayEstimate openweather = FetchOpenWeatherDelayEstimate(
       options, Coordinate{.lon = input.depot_lon, .lat = input.depot_lat},
-      ReadRouteStartTime(input), baseline_duration_seconds);
+      route_start_time, baseline_duration_seconds);
   if (openweather.available) {
     effective_options.weather_delay_seconds_per_stop = openweather.delay_seconds_per_stop;
     impact = EstimateWeatherImpact(effective_options, input.jobs.size(), baseline_duration_seconds);
     impact.source = openweather.source;
-    SetRouteTimes(input, impact);
+    SetRouteTimes(route_start_time, impact);
   }
 
   return impact;
@@ -420,12 +420,9 @@ Json::Value BuildWeatherForecastAnnotation(const WeatherForecastOptions& options
   forecast["status"] = options.enabled ? "evaluated" : "disabled";
   forecast["provider"] = impact.source;
   forecast["stop_count"] = impact.stop_count;
-  forecast["baseline_duration_seconds"] = impact.baseline_duration_seconds;
   forecast["baseline_route_duration_seconds"] = impact.baseline_route_duration_seconds;
   forecast["weather_delay_seconds"] = impact.weather_delay_seconds;
   forecast["weather_adjusted_duration_seconds"] = impact.weather_adjusted_duration_seconds;
-  forecast["predicted_duration_seconds"] =
-      impact.baseline_duration_seconds + impact.weather_delay_seconds;
   forecast["reoptimize_threshold_seconds"] = impact.reoptimize_threshold_seconds;
   if (impact.planned_start_time.has_value()) {
     forecast["planned_start_time"] =

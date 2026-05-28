@@ -1,5 +1,6 @@
 find_package(GTest CONFIG REQUIRED)
 find_package(jsoncpp CONFIG REQUIRED)
+find_package(Drogon CONFIG REQUIRED)
 include(GoogleTest)
 
 set(
@@ -27,6 +28,7 @@ target_sources(
   deliveryoptimizer_tests
   PRIVATE
     "${CMAKE_SOURCE_DIR}/app/api/src/observability.cpp"
+    "${CMAKE_SOURCE_DIR}/app/api/src/forecast_optimizer.cpp"
     "${CMAKE_SOURCE_DIR}/app/api/src/optimize_request.cpp"
     "${CMAKE_SOURCE_DIR}/app/api/src/solve_admission.cpp"
     "${CMAKE_SOURCE_DIR}/app/api/src/solve_coordinator.cpp"
@@ -44,6 +46,7 @@ target_link_libraries(
   deliveryoptimizer_tests
   PRIVATE
     deliveryoptimizer::adapters
+    Drogon::Drogon
     GTest::gtest_main
     JsonCpp::JsonCpp
 )

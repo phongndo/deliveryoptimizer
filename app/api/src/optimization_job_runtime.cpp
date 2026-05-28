@@ -1,6 +1,7 @@
 #include "deliveryoptimizer/api/optimization_job_runtime.hpp"
 
 #include "deliveryoptimizer/adapters/json_utils.hpp"
+#include "deliveryoptimizer/api/forecast_optimizer.hpp"
 #include "deliveryoptimizer/api/optimize_request.hpp"
 #include "deliveryoptimizer/api/solve_execution.hpp"
 
@@ -23,7 +24,8 @@ OptimizationJobRuntime::OptimizationJobRuntime(std::shared_ptr<OptimizationJobSt
                                                std::shared_ptr<ObservabilityRegistry> observability,
                                                OptimizationJobRuntimeOptions options)
     : store_(std::move(store)), runner_(std::move(runner)),
-      observability_(std::move(observability)), options_(options) {
+      observability_(std::move(observability)), options_(options),
+      weather_options_(ResolveWeatherForecastOptionsFromEnv()) {
   if (store_ != nullptr && store_->IsConfigured()) {
     schema_ready_ = store_->EnsureSchema(&schema_status_detail_);
   }
@@ -152,9 +154,13 @@ void OptimizationJobRuntime::WorkerLoop(const std::stop_token stop_token,
         }
       }
     } else {
+      const int baseline_seconds = EstimateServiceSeconds(parsed_request->input);
+      const WeatherImpactEstimate impact =
+          EstimateRouteWeatherImpact(weather_options_, parsed_request->input, baseline_seconds);
+      const Json::Value vroom_input = BuildWeatherAdjustedVroomInput(parsed_request->input, impact);
       const auto solve_result = BuildSolveExecutionResult(
-          parsed_request->input,
-          ToCoordinatedSolveResult(runner_->Run(BuildVroomInput(parsed_request->input))));
+          parsed_request->input, ToCoordinatedSolveResult(runner_->Run(vroom_input)),
+          BuildWeatherForecastAnnotation(weather_options_, impact));
       if (solve_result.response_body.has_value()) {
         if (store_->CompleteJobSuccess(claimed_job->record.job_id, claimed_job->worker_id,
                                        *solve_result.response_body, solve_result.outcome,

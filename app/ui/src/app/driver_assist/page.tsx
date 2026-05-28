@@ -1,32 +1,33 @@
 "use client";
 
-import type { CSSProperties } from "react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 
 import {
-  createPersistedRouteState,
   loadSessionFromFile,
-  parsePersistedRouteState,
+  loadSessionFromText,
 } from "@/lib/driver-route/importSession";
 import { transformSessionToDriverRoute } from "@/lib/driver-route/transformSession";
 import type { DeliveryStop, DriverRoute } from "@/lib/driver-route/types";
 
-const STORAGE_KEY = "driver_assist.routeState";
-
-function readSavedRoute(): DriverRoute | null {
-  if (typeof window === "undefined") return null;
-
-  try {
-    const saved = window.localStorage.getItem(STORAGE_KEY);
-    if (!saved) return null;
-    return parsePersistedRouteState(JSON.parse(saved)).route;
-  } catch {
-    window.localStorage.removeItem(STORAGE_KEY);
-    return null;
-  }
-}
+import DriverFooter from "./components/DriverFooter";
+import ReportIssueDialog, {
+  type ReportReason,
+} from "./components/ReportIssueDialog";
+import StatBlock from "./components/StatBlock";
+import StopCard from "./components/StopCard";
+import { WarningIcon } from "./components/icons";
+import {
+  clearUploadedRouteFile,
+  persistRoute,
+  readSavedRoute,
+  readUploadedRouteFile,
+} from "./storage";
+import { styles } from "./styles";
 
 function openNavigation(stop: DeliveryStop) {
+  // Prefer exact coordinates from the route file; fall back to the address if
+  // the saved JSON came from an older flow without geocoded locations.
   const query =
     stop.lat !== 0 || stop.lng !== 0
       ? `${stop.lat},${stop.lng}`
@@ -38,27 +39,75 @@ function openNavigation(stop: DeliveryStop) {
   );
 }
 
+function openPhone(stop: DeliveryStop) {
+  const phoneNumber = stop.phoneNumber?.trim();
+
+  if (!phoneNumber) {
+    return;
+  }
+
+  window.location.href = `tel:${phoneNumber}`;
+}
+
 export default function DriverAssistPwaPage() {
+  const router = useRouter();
   const inputRef = useRef<HTMLInputElement>(null);
+  const topRef = useRef<HTMLDivElement>(null);
+  const remainingRef = useRef<HTMLDivElement>(null);
+  const deliveredRef = useRef<HTMLDivElement>(null);
+  const reportedRef = useRef<HTMLDivElement>(null);
   const [route, setRoute] = useState<DriverRoute | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [reportStopId, setReportStopId] = useState<string | null>(null);
+  const [reportReason, setReportReason] = useState<ReportReason>(
+    "Customer unavailable",
+  );
+  const [reportDetails, setReportDetails] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isImporting, setIsImporting] = useState(false);
-  const [failureReport, setFailureReport] = useState<{
-    stopId: string;
-    reason: string;
-  } | null>(null);
+  const [hasCheckedRoute, setHasCheckedRoute] = useState(false);
 
   useEffect(() => {
-    setRoute(readSavedRoute());
-  }, []);
+    // The upload page hands off the raw JSON through sessionStorage so this
+    // page can import once, save the driver shape, and avoid bouncing back.
+    const uploadedRoute = readUploadedRouteFile();
+    let importFailed = false;
+
+    if (uploadedRoute) {
+      try {
+        const session = loadSessionFromText(uploadedRoute.content);
+        const nextRoute = transformSessionToDriverRoute(session);
+        persistRoute(nextRoute);
+        clearUploadedRouteFile();
+        setRoute(nextRoute);
+        setOpenId(nextRoute.stops[0]?.id || null);
+        setHasCheckedRoute(true);
+        return;
+      } catch (importError) {
+        importFailed = true;
+        setError(
+          importError instanceof Error
+            ? importError.message
+            : "Please upload a valid JSON file.",
+        );
+      }
+    }
+
+    // Reloading the PWA should keep the driver exactly where they left off.
+    const savedRoute = readSavedRoute();
+    setRoute(savedRoute);
+    setOpenId(savedRoute?.stops[0]?.id || null);
+    setHasCheckedRoute(true);
+
+    if (!savedRoute && !importFailed) {
+      router.replace("/upload-route");
+    }
+  }, [router]);
 
   useEffect(() => {
+    // Persist every delivery status/note change so refreshes do not lose work.
     if (!route) return;
-    window.localStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify(createPersistedRouteState(route)),
-    );
+    persistRoute(route);
   }, [route]);
 
   const totals = useMemo(() => {
@@ -83,8 +132,11 @@ export default function DriverAssistPwaPage() {
     setIsImporting(true);
 
     try {
+      // Direct upload is kept here too, so /driver_assist works even if a
+      // driver lands on it without going through /upload-route first.
       const session = await loadSessionFromFile(file);
       const nextRoute = transformSessionToDriverRoute(session);
+      persistRoute(nextRoute);
       setRoute(nextRoute);
       setOpenId(nextRoute.stops[0]?.id || null);
     } catch (importError) {
@@ -99,6 +151,8 @@ export default function DriverAssistPwaPage() {
   };
 
   const updateStop = (stopId: string, changes: Partial<DeliveryStop>) => {
+    // Keep stop updates narrow so notes, status, and failure reasons can share
+    // one path without rebuilding the whole route by hand.
     setRoute((current) => {
       if (!current) return current;
 
@@ -111,33 +165,55 @@ export default function DriverAssistPwaPage() {
     });
   };
 
-  const resetRoute = () => {
-    window.localStorage.removeItem(STORAGE_KEY);
-    setRoute(null);
+  const openReportDialog = (stopId: string) => {
+    setReportStopId(stopId);
+    setReportReason("Customer unavailable");
+    setReportDetails("");
+  };
+
+  const closeReportDialog = () => {
+    setReportStopId(null);
+    setReportDetails("");
+  };
+
+  const submitReport = () => {
+    if (!reportStopId) return;
+    // "Other" only becomes the saved reason once the driver confirms it.
+    const reason =
+      reportReason === "Other" ? reportDetails.trim() || "Other" : reportReason;
+
+    updateStop(reportStopId, {
+      status: "failed",
+      failureReason: reason,
+    });
     setOpenId(null);
-    setError(null);
+    closeReportDialog();
+  };
+
+  const finishRoute = () => {
+    // Save one last time before moving to the export summary screen.
+    if (route) {
+      persistRoute(route);
+    }
+    router.push("/driver_assist/summary");
+  };
+
+  const scrollToSection = (target: React.RefObject<HTMLElement | null>) => {
+    target.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
   const pendingStops =
     route?.stops.filter((stop) => stop.status === "pending") || [];
-  const resolvedStops =
-    route?.stops.filter((stop) => stop.status !== "pending") || [];
-  const reportStop = failureReport
-    ? route?.stops.find((stop) => stop.id === failureReport.stopId)
-    : null;
+  const deliveredStops =
+    route?.stops.filter((stop) => stop.status === "completed") || [];
+  const reportedStops =
+    route?.stops.filter((stop) => stop.status === "failed") || [];
 
-  const closeFailureReport = () => setFailureReport(null);
-
-  const submitFailureReport = () => {
-    if (!failureReport) return;
-
-    updateStop(failureReport.stopId, {
-      status: "failed",
-      failureReason: failureReport.reason.trim() || "No reason provided",
-    });
-    setOpenId(null);
-    closeFailureReport();
-  };
+  if (!hasCheckedRoute || (!route && !error)) {
+    // Empty shell prevents the black-and-white upload screen from flashing
+    // while local/session storage is being checked.
+    return <main style={styles.loadingScreen} aria-label="Loading route" />;
+  }
 
   if (!route) {
     return (
@@ -170,24 +246,36 @@ export default function DriverAssistPwaPage() {
 
   return (
     <main style={styles.safeArea}>
-      <section style={styles.container}>
+      <section ref={topRef} style={styles.container}>
         <div style={styles.topBar}>
-          <h1 style={styles.appHeader}>driver_assist</h1>
-          <button type="button" style={styles.textButton} onClick={resetRoute}>
-            New route
+          <h1 style={styles.appHeader}>Driver Assist</h1>
+          <button
+            type="button"
+            style={styles.iconButton}
+            onClick={() => scrollToSection(reportedRef)}
+            aria-label="View reported deliveries"
+          >
+            <WarningIcon />
           </button>
         </div>
 
         <section style={styles.summaryCard}>
-          <p style={styles.headerLabel}>Current Route</p>
-          <h2 style={styles.driverName}>{route.driverName}</h2>
-          <p style={styles.routeLabel}>{route.routeLabel}</p>
-
-          <div style={styles.progressHeader}>
-            <span>Progress</span>
-            <span>
-              {totals.completed}/{totals.total} Deliveries Complete
-            </span>
+          <div style={styles.statsRow}>
+            <StatBlock
+              value={totals.total}
+              label="Total"
+              onClick={() => scrollToSection(topRef)}
+            />
+            <StatBlock
+              value={totals.completed}
+              label="Complete"
+              onClick={() => scrollToSection(deliveredRef)}
+            />
+            <StatBlock
+              value={totals.pending}
+              label="Remaining"
+              onClick={() => scrollToSection(remainingRef)}
+            />
           </div>
 
           <div style={styles.progressTrack}>
@@ -198,525 +286,98 @@ export default function DriverAssistPwaPage() {
               }}
             />
           </div>
-
-          <div style={styles.statsRow}>
-            <StatBlock value={totals.pending} label="Remaining" />
-            <StatBlock value={totals.failed} label="Failed" />
-            <StatBlock value={totals.completed} label="Completed" />
-          </div>
         </section>
 
-        {pendingStops.map((stop) => (
-          <StopCard
-            key={stop.id}
-            stop={stop}
-            isOpen={openId === stop.id}
-            onToggle={() => setOpenId(openId === stop.id ? null : stop.id)}
-            onChangeNote={(notes) => updateStop(stop.id, { notes })}
-            onComplete={() => {
-              updateStop(stop.id, {
-                status: "completed",
-                completedAt: new Date().toISOString(),
-              });
-              setOpenId(null);
-            }}
-            onReport={() => {
-              setFailureReport({
-                stopId: stop.id,
-                reason: stop.failureReason || "",
-              });
-            }}
-            onNavigate={() => openNavigation(stop)}
-          />
-        ))}
+        {/* Remaining is the active work queue, so it stays first and expanded. */}
+        <section ref={remainingRef} style={styles.routeSection}>
+          <h2 style={styles.sectionTitle}>Remaining</h2>
 
-        {resolvedStops.length > 0 ? (
-          <section style={styles.historySection}>
-            <h2 style={styles.historyTitle}>Completed & Failed</h2>
-            {resolvedStops.map((stop) => (
-              <StopCard
-                key={stop.id}
-                stop={stop}
-                isOpen={openId === stop.id}
-                onToggle={() => setOpenId(openId === stop.id ? null : stop.id)}
-                onChangeNote={(notes) => updateStop(stop.id, { notes })}
-                onComplete={() => undefined}
-                onReport={() => undefined}
-                onNavigate={() => openNavigation(stop)}
-              />
-            ))}
-          </section>
-        ) : null}
+          {pendingStops.map((stop) => (
+            <StopCard
+              key={stop.id}
+              stop={stop}
+              isOpen={openId === stop.id}
+              onToggle={() => setOpenId(openId === stop.id ? null : stop.id)}
+              onChangeNote={(notes) => updateStop(stop.id, { notes })}
+              onComplete={() => {
+                updateStop(stop.id, {
+                  status: "completed",
+                  completedAt: new Date().toISOString(),
+                });
+                setOpenId(null);
+              }}
+              onReport={() => openReportDialog(stop.id)}
+              onCall={stop.phoneNumber ? () => openPhone(stop) : undefined}
+              onNavigate={() => openNavigation(stop)}
+            />
+          ))}
+        </section>
 
-        {failureReport ? (
-          <div style={styles.dialogBackdrop}>
-            <section
-              aria-modal="true"
-              role="dialog"
-              style={styles.dialog}
-              aria-labelledby="failure-report-title"
-            >
-              <h2 id="failure-report-title" style={styles.dialogTitle}>
-                Report delivery issue
-              </h2>
-              <p style={styles.dialogText}>
-                {reportStop
-                  ? `${reportStop.customerName} - Stop ${reportStop.stopNumber}`
-                  : "Add a short reason for the failed delivery."}
-              </p>
-              <textarea
-                autoFocus
-                style={styles.noteInput}
-                value={failureReport.reason}
-                onChange={(event) =>
-                  setFailureReport({
-                    ...failureReport,
-                    reason: event.target.value,
-                  })
-                }
-                placeholder="Customer unavailable, blocked entrance, unsafe access..."
-              />
-              <div style={styles.dialogActions}>
-                <button
-                  type="button"
-                  style={styles.secondaryButton}
-                  onClick={closeFailureReport}
-                >
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  style={styles.primaryButton}
-                  onClick={submitFailureReport}
-                >
-                  Save issue
-                </button>
-              </div>
-            </section>
-          </div>
-        ) : null}
+        {/* Delivered and reported stops stay available for review, but without
+            the live completion/report controls. */}
+        <section ref={deliveredRef} style={styles.historySection}>
+          {deliveredStops.length > 0 ? (
+            <>
+              <h2 style={styles.historyTitle}>Delivered</h2>
+              {deliveredStops.map((stop) => (
+                <StopCard
+                  key={stop.id}
+                  stop={stop}
+                  isOpen={openId === stop.id}
+                  onToggle={() =>
+                    setOpenId(openId === stop.id ? null : stop.id)
+                  }
+                  onChangeNote={(notes) => updateStop(stop.id, { notes })}
+                  onComplete={() => undefined}
+                  onReport={() => undefined}
+                  onNavigate={() => openNavigation(stop)}
+                />
+              ))}
+            </>
+          ) : null}
+        </section>
+
+        <section ref={reportedRef} style={styles.historySection}>
+          {reportedStops.length > 0 ? (
+            <>
+              <h2 style={styles.historyTitle}>Reported</h2>
+              {reportedStops.map((stop) => (
+                <StopCard
+                  key={stop.id}
+                  stop={stop}
+                  isOpen={openId === stop.id}
+                  onToggle={() =>
+                    setOpenId(openId === stop.id ? null : stop.id)
+                  }
+                  onChangeNote={(notes) => updateStop(stop.id, { notes })}
+                  onComplete={() => undefined}
+                  onReport={() => undefined}
+                  onNavigate={() => openNavigation(stop)}
+                />
+              ))}
+            </>
+          ) : null}
+        </section>
+
+        <DriverFooter />
       </section>
+
+      <div style={styles.finishBar}>
+        <button type="button" style={styles.finishButton} onClick={finishRoute}>
+          Finish
+        </button>
+      </div>
+
+      {reportStopId ? (
+        <ReportIssueDialog
+          reason={reportReason}
+          details={reportDetails}
+          onReasonChange={setReportReason}
+          onDetailsChange={setReportDetails}
+          onCancel={closeReportDialog}
+          onSubmit={submitReport}
+        />
+      ) : null}
     </main>
   );
 }
-
-function StatBlock({ value, label }: { value: number; label: string }) {
-  return (
-    <div style={styles.statBlock}>
-      <strong style={styles.statNumber}>{value}</strong>
-      <span style={styles.statLabel}>{label}</span>
-    </div>
-  );
-}
-
-function StopCard({
-  stop,
-  isOpen,
-  onToggle,
-  onChangeNote,
-  onComplete,
-  onReport,
-  onNavigate,
-}: {
-  stop: DeliveryStop;
-  isOpen: boolean;
-  onToggle: () => void;
-  onChangeNote: (value: string) => void;
-  onComplete: () => void;
-  onReport?: () => void;
-  onNavigate?: () => void;
-}) {
-  const isCompleted = stop.status === "completed";
-  const isFailed = stop.status === "failed";
-  const isDone = isCompleted || isFailed;
-  const completedAtText = stop.completedAt
-    ? new Date(stop.completedAt).toLocaleString()
-    : null;
-
-  return (
-    <article
-      style={{
-        ...styles.card,
-        ...(isCompleted ? styles.completedCard : {}),
-        ...(isFailed ? styles.failedCard : {}),
-      }}
-    >
-      <button type="button" style={styles.cardButton} onClick={onToggle}>
-        <span
-          style={{
-            ...styles.statusCircle,
-            ...(isCompleted ? styles.completedCircle : {}),
-            ...(isFailed ? styles.failedCircle : {}),
-          }}
-        />
-        <span style={styles.textBlock}>
-          <strong style={styles.stopText}>Stop {stop.stopNumber}</strong>
-          <span style={styles.nameText}>{stop.customerName}</span>
-          {stop.phoneNumber ? (
-            <span style={styles.phoneText}>{stop.phoneNumber}</span>
-          ) : null}
-          <span style={styles.addressText}>{stop.address}</span>
-        </span>
-      </button>
-
-      {isOpen ? (
-        <div style={styles.expandedSection}>
-          <p style={styles.metaText}>Packages: {stop.packageCount}</p>
-          <textarea
-            style={styles.noteInput}
-            value={stop.notes}
-            onChange={(event) => onChangeNote(event.target.value)}
-            placeholder="Add delivery note"
-          />
-
-          {isCompleted && completedAtText ? (
-            <p style={styles.statusText}>Completed at: {completedAtText}</p>
-          ) : null}
-
-          {isFailed && stop.failureReason ? (
-            <p style={styles.statusText}>
-              Failure reason: {stop.failureReason}
-            </p>
-          ) : null}
-
-          {!isDone ? (
-            <div style={styles.buttonRow}>
-              <button
-                type="button"
-                style={styles.actionButton}
-                onClick={onComplete}
-              >
-                Complete
-              </button>
-              <button
-                type="button"
-                style={styles.actionButton}
-                onClick={onNavigate}
-              >
-                Navigate
-              </button>
-              <button
-                type="button"
-                style={styles.actionButton}
-                onClick={onReport}
-              >
-                Report
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              style={styles.actionButton}
-              onClick={onNavigate}
-            >
-              Navigate
-            </button>
-          )}
-        </div>
-      ) : null}
-    </article>
-  );
-}
-
-const styles: Record<string, CSSProperties> = {
-  safeArea: {
-    minHeight: "100svh",
-    backgroundColor: "#ffffff",
-    color: "#111827",
-    fontFamily: "var(--font-geist-sans), Arial, sans-serif",
-  },
-  uploadScreen: {
-    minHeight: "100svh",
-    display: "flex",
-    flexDirection: "column",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 24,
-  },
-  hiddenInput: {
-    display: "none",
-  },
-  appHeader: {
-    fontSize: 32,
-    fontWeight: 700,
-    color: "#111827",
-    margin: "0 0 16px",
-  },
-  uploadButton: {
-    backgroundColor: "#111827",
-    border: 0,
-    borderRadius: 8,
-    color: "#ffffff",
-    cursor: "pointer",
-    fontSize: 16,
-    fontWeight: 600,
-    padding: "14px 20px",
-  },
-  errorText: {
-    color: "#b91c1c",
-    fontSize: 14,
-    marginTop: 14,
-    maxWidth: 300,
-    textAlign: "center",
-  },
-  container: {
-    maxWidth: 520,
-    margin: "0 auto",
-    padding: 16,
-  },
-  topBar: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 16,
-  },
-  textButton: {
-    background: "transparent",
-    border: "1px solid #d1d5db",
-    borderRadius: 8,
-    color: "#111827",
-    cursor: "pointer",
-    fontSize: 14,
-    fontWeight: 600,
-    padding: "9px 12px",
-  },
-  summaryCard: {
-    backgroundColor: "#ffffff",
-    border: "2px solid #4b5563",
-    borderRadius: 8,
-    marginBottom: 16,
-    padding: 20,
-  },
-  headerLabel: {
-    color: "#6b7280",
-    fontSize: 18,
-    margin: "0 0 8px",
-  },
-  driverName: {
-    color: "#111827",
-    fontSize: 36,
-    fontWeight: 700,
-    lineHeight: 1.1,
-    margin: 0,
-  },
-  routeLabel: {
-    color: "#374151",
-    fontSize: 18,
-    margin: "4px 0 18px",
-  },
-  progressHeader: {
-    color: "#111827",
-    display: "flex",
-    fontSize: 15,
-    justifyContent: "space-between",
-    marginBottom: 8,
-  },
-  progressTrack: {
-    backgroundColor: "#e5e7eb",
-    borderRadius: 999,
-    height: 12,
-    marginBottom: 18,
-    overflow: "hidden",
-  },
-  progressFill: {
-    backgroundColor: "#22c55e",
-    height: 12,
-  },
-  statsRow: {
-    backgroundColor: "#f3f4f6",
-    borderRadius: 8,
-    display: "flex",
-    justifyContent: "space-between",
-    padding: "18px 0",
-  },
-  statBlock: {
-    alignItems: "center",
-    display: "flex",
-    flex: 1,
-    flexDirection: "column",
-  },
-  statNumber: {
-    color: "#111827",
-    fontSize: 28,
-    fontWeight: 700,
-  },
-  statLabel: {
-    color: "#4b5563",
-    fontSize: 14,
-    marginTop: 4,
-  },
-  card: {
-    backgroundColor: "#f3f4f6",
-    borderRadius: 8,
-    marginBottom: 14,
-    padding: 18,
-  },
-  completedCard: {
-    backgroundColor: "#e5e7eb",
-  },
-  failedCard: {
-    backgroundColor: "#fee2e2",
-  },
-  cardButton: {
-    alignItems: "flex-start",
-    background: "transparent",
-    border: 0,
-    cursor: "pointer",
-    display: "flex",
-    gap: 12,
-    padding: 0,
-    textAlign: "left",
-    width: "100%",
-  },
-  statusCircle: {
-    backgroundColor: "#ffffff",
-    border: "2px solid #d1d5db",
-    borderRadius: 11,
-    flex: "0 0 22px",
-    height: 22,
-    marginTop: 4,
-    width: 22,
-  },
-  completedCircle: {
-    backgroundColor: "#22c55e",
-    borderColor: "#22c55e",
-  },
-  failedCircle: {
-    backgroundColor: "#ef4444",
-    borderColor: "#ef4444",
-  },
-  textBlock: {
-    display: "flex",
-    flex: 1,
-    flexDirection: "column",
-    minWidth: 0,
-  },
-  stopText: {
-    color: "#111827",
-    fontSize: 24,
-    fontWeight: 700,
-    marginBottom: 2,
-  },
-  nameText: {
-    color: "#6b7280",
-    fontSize: 16,
-    marginBottom: 2,
-  },
-  phoneText: {
-    color: "#6b7280",
-    fontSize: 15,
-    marginBottom: 4,
-  },
-  addressText: {
-    color: "#374151",
-    fontSize: 16,
-    overflowWrap: "anywhere",
-  },
-  expandedSection: {
-    borderTop: "1px solid #e5e7eb",
-    marginTop: 16,
-    paddingTop: 14,
-  },
-  metaText: {
-    color: "#111827",
-    fontSize: 16,
-    margin: "0 0 12px",
-  },
-  noteInput: {
-    backgroundColor: "#ffffff",
-    border: "1px solid #d1d5db",
-    borderRadius: 8,
-    boxSizing: "border-box",
-    color: "#111827",
-    font: "inherit",
-    marginBottom: 12,
-    minHeight: 72,
-    padding: 12,
-    resize: "vertical",
-    width: "100%",
-  },
-  statusText: {
-    color: "#374151",
-    fontSize: 14,
-    margin: "0 0 12px",
-  },
-  buttonRow: {
-    display: "grid",
-    gap: 8,
-    gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
-  },
-  actionButton: {
-    backgroundColor: "#ffffff",
-    border: "1px solid #e5e7eb",
-    borderRadius: 8,
-    color: "#111827",
-    cursor: "pointer",
-    fontWeight: 600,
-    minHeight: 44,
-    padding: "12px 8px",
-  },
-  historySection: {
-    marginTop: 8,
-  },
-  historyTitle: {
-    color: "#111827",
-    fontSize: 20,
-    fontWeight: 700,
-    margin: "0 0 10px",
-  },
-  dialogBackdrop: {
-    alignItems: "center",
-    backgroundColor: "rgba(17, 24, 39, 0.42)",
-    bottom: 0,
-    display: "flex",
-    justifyContent: "center",
-    left: 0,
-    padding: 18,
-    position: "fixed",
-    right: 0,
-    top: 0,
-    zIndex: 20,
-  },
-  dialog: {
-    backgroundColor: "#ffffff",
-    borderRadius: 10,
-    boxShadow: "0 24px 60px rgba(17, 24, 39, 0.24)",
-    maxWidth: 420,
-    padding: 18,
-    width: "100%",
-  },
-  dialogTitle: {
-    color: "#111827",
-    fontSize: 22,
-    fontWeight: 700,
-    margin: "0 0 8px",
-  },
-  dialogText: {
-    color: "#4b5563",
-    fontSize: 15,
-    margin: "0 0 14px",
-  },
-  dialogActions: {
-    display: "grid",
-    gap: 10,
-    gridTemplateColumns: "1fr 1fr",
-  },
-  secondaryButton: {
-    backgroundColor: "#ffffff",
-    border: "1px solid #d1d5db",
-    borderRadius: 8,
-    color: "#111827",
-    cursor: "pointer",
-    fontWeight: 600,
-    minHeight: 44,
-  },
-  primaryButton: {
-    backgroundColor: "#111827",
-    border: "1px solid #111827",
-    borderRadius: 8,
-    color: "#ffffff",
-    cursor: "pointer",
-    fontWeight: 700,
-    minHeight: 44,
-  },
-};

@@ -52,11 +52,15 @@ export default function CSVUploadOverlay({
 }: CSVUploadOverlayProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(
-    initialFile ?? null,
+    initialFile && initialFile.size <= MAX_CSV_BYTES ? initialFile : null,
   );
   const [isUploading, setIsUploading] = useState(false);
   const [isDragOver, setIsDragOver] = useState(false);
-  const [fileSizeError, setFileSizeError] = useState<string | null>(null);
+  const [fileSizeError, setFileSizeError] = useState<string | null>(
+    initialFile && initialFile.size > MAX_CSV_BYTES
+      ? "Your file exceeds 10 MB. Please use a smaller file."
+      : null,
+  );
 
   function handleClose() {
     setIsUploading(false);

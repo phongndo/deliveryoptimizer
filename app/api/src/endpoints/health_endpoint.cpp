@@ -105,6 +105,8 @@ struct OsrmProbeResult {
 }
 
 [[nodiscard]] drogon::HttpClientPtr GetOsrmHttpClient() {
+  // Leak the pointer-to-shared_ptr intentionally: keeping the HttpClientPtr itself
+  // off static storage prevents its destructor from running after Drogon's loops shut down.
   static const auto* client = new drogon::HttpClientPtr{drogon::HttpClient::newHttpClient(
       deliveryoptimizer::api::ResolveNormalizedUrlEnvOrDefault("OSRM_URL", kDefaultOsrmUrl))};
   return *client;
@@ -187,6 +189,8 @@ void StartOsrmProbe() {
         (void)osrm_client;
         const OsrmProbeResult osrm_probe = EvaluateOsrmProbe(result, response);
         for (auto& waiter : CacheOsrmProbeAndTakeWaiters(osrm_probe)) {
+          // Drogon's response callback is safe to invoke from this client callback thread;
+          // off-loop socket writes are queued back to each request's connection loop.
           waiter(osrm_probe);
         }
       },
@@ -221,7 +225,11 @@ void RegisterHealthEndpoint(drogon::HttpAppFramework& app,
 
         if (dispatch.should_start_probe) {
           StartOsrmProbe();
+          return;
         }
+
+        // Waiter registered; another in-flight probe will respond via fan-out.
+        return;
       });
 }
 

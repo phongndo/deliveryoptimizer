@@ -129,6 +129,12 @@ for index in $(seq 1 5); do
   fi
 done
 
+if [[ ! -f "${probe_count_file}" ]]; then
+  echo "probe_count_file missing -- no OSRM probe reached stub" >&2
+  cat "${stub_log_file}" >&2 || true
+  exit 1
+fi
+
 probe_count="$(cat "${probe_count_file}")"
 if [[ "${probe_count}" != "1" ]]; then
   echo "expected concurrent cold /health requests to share one OSRM probe, got ${probe_count}" >&2

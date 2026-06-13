@@ -172,7 +172,13 @@ export default function Page() {
   }, [importAddresses, importVehicles]);
 
   useEffect(() => {
-    saveEditPageDraft(vehicleState.vehicles, addressState.addresses);
+    const draftSaveTimer = window.setTimeout(() => {
+      saveEditPageDraft(vehicleState.vehicles, addressState.addresses);
+    }, 500);
+
+    return () => {
+      window.clearTimeout(draftSaveTimer);
+    };
   }, [vehicleState.vehicles, addressState.addresses]);
 
   const handleExportSession = useCallback(async () => {

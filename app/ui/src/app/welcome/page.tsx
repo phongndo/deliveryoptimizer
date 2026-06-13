@@ -198,7 +198,11 @@ export default function WelcomePage() {
               role="button"
               tabIndex={0}
               aria-label="New user — continue"
-              onClick={() => { clearEditPageDraft(); clearOptimizeResults(); router.push("/edit"); }}
+              onClick={() => {
+                clearEditPageDraft();
+                clearOptimizeResults();
+                router.push("/edit");
+              }}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();

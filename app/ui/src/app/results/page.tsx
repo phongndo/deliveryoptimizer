@@ -122,7 +122,6 @@ export default function ResultsPage() {
     [routes],
   );
 
-
   const updateStopNote = useCallback(
     (routeId: string, stopId: string, note: string) => {
       setRoutes((prev) =>
@@ -227,28 +226,31 @@ export default function ResultsPage() {
     [routes, isEditMode, pendingPinMove],
   );
 
-  const handleDuplicateRoute = useCallback((vehicleId: string) => {
-    setRoutes((prev) => {
-      const routeIndex = prev.findIndex((r) => r.vehicleId === vehicleId);
-      if (routeIndex === -1) return prev;
-      const source = prev[routeIndex]!;
-      const suffix = Date.now().toString(36);
-      const copy: Route = {
-        ...source,
-        vehicleId: `${source.vehicleId}-copy-${suffix}`,
-        driverName: `${source.driverName} (copy)`,
-        stops: source.stops.map((stop, stopIndex) => ({
-          ...stop,
-          id: `${stop.id}-copy-${suffix}-${stopIndex}`,
-        })),
-      };
-      return [
-        ...prev.slice(0, routeIndex + 1),
-        copy,
-        ...prev.slice(routeIndex + 1),
-      ];
-    });
-  }, [setRoutes]);
+  const handleDuplicateRoute = useCallback(
+    (vehicleId: string) => {
+      setRoutes((prev) => {
+        const routeIndex = prev.findIndex((r) => r.vehicleId === vehicleId);
+        if (routeIndex === -1) return prev;
+        const source = prev[routeIndex]!;
+        const suffix = Date.now().toString(36);
+        const copy: Route = {
+          ...source,
+          vehicleId: `${source.vehicleId}-copy-${suffix}`,
+          driverName: `${source.driverName} (copy)`,
+          stops: source.stops.map((stop, stopIndex) => ({
+            ...stop,
+            id: `${stop.id}-copy-${suffix}-${stopIndex}`,
+          })),
+        };
+        return [
+          ...prev.slice(0, routeIndex + 1),
+          copy,
+          ...prev.slice(routeIndex + 1),
+        ];
+      });
+    },
+    [setRoutes],
+  );
 
   const handleDeleteRoute = useCallback(
     (vehicleId: string) => {

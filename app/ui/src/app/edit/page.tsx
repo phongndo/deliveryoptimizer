@@ -93,6 +93,7 @@ export default function Page() {
   } = useCSVImport();
 
   const [isUploadOverlayOpen, setIsUploadOverlayOpen] = useState(false);
+  const [isHydrated, setIsHydrated] = useState(false);
 
   const isDraggingOverPage =
     dragCount > 0 && !isUploadOverlayOpen && !isImportModalOpen;
@@ -105,62 +106,68 @@ export default function Page() {
     let cancelled = false;
 
     const hydrateImportedState = async () => {
-      // Session save file (JSON with vehicles + deliveries schema).
-      // removeItem is intentionally inside the try block — if loadSessionFromFile
-      // throws, the key stays in sessionStorage so a page refresh can retry.
-      const storedSavePointFile = sessionStorage.getItem("savePointFile");
-      if (storedSavePointFile) {
-        try {
-          const savedFile = parseStoredUploadFile(
-            storedSavePointFile,
-            "save point",
-          );
-          const session = await loadSessionFromFile(
-            new File([savedFile.content], savedFile.name, {
-              type: "application/json",
-            }),
-          );
-          const importedState = mapOptimizeRequestToEditState(session);
-          if (cancelled) return;
-          importVehicles(importedState.vehicles);
-          importAddresses(importedState.addresses);
-          // Only remove after a successful import so a refresh can retry on failure
-          sessionStorage.removeItem("savePointFile");
-        } catch (error) {
-          if (!cancelled) {
-            setSessionError(
-              error instanceof Error
-                ? error.message
-                : "Failed to import the saved session.",
+      try {
+        // Session save file (JSON with vehicles + deliveries schema).
+        // removeItem is intentionally inside the try block — if loadSessionFromFile
+        // throws, the key stays in sessionStorage so a page refresh can retry.
+        const storedSavePointFile = sessionStorage.getItem("savePointFile");
+        if (storedSavePointFile) {
+          try {
+            const savedFile = parseStoredUploadFile(
+              storedSavePointFile,
+              "save point",
             );
+            const session = await loadSessionFromFile(
+              new File([savedFile.content], savedFile.name, {
+                type: "application/json",
+              }),
+            );
+            const importedState = mapOptimizeRequestToEditState(session);
+            if (cancelled) return;
+            importVehicles(importedState.vehicles);
+            importAddresses(importedState.addresses);
+            // Only remove after a successful import so a refresh can retry on failure
+            sessionStorage.removeItem("savePointFile");
+          } catch (error) {
+            if (!cancelled) {
+              setSessionError(
+                error instanceof Error
+                  ? error.message
+                  : "Failed to import the saved session.",
+              );
+            }
+          }
+          return;
+        }
+
+        // Fully-built AddressCard[] written by CSVImportModal's onConfirmAndNavigate path.
+        // No parsing needed — import directly into address state.
+        const storedImportedCards = sessionStorage.getItem("importedCards");
+        if (storedImportedCards) {
+          sessionStorage.removeItem("importedCards");
+          try {
+            const cards = JSON.parse(storedImportedCards) as AddressCard[];
+            if (!cancelled) importAddresses(reindexAddresses(cards));
+          } catch {
+            if (!cancelled)
+              setSessionError("Failed to import the selected entries.");
+          }
+          return;
+        }
+
+        // Auto-saved draft — restore vehicles and addresses when navigating back
+        // from the results page. Lower priority than savePointFile/importedCards.
+        const draft = loadEditPageDraft();
+        if (draft) {
+          if (!cancelled) {
+            if (draft.vehicles.length > 0) importVehicles(draft.vehicles);
+            if (draft.addresses.length > 0) importAddresses(draft.addresses);
           }
         }
-        return;
-      }
-
-      // Fully-built AddressCard[] written by CSVImportModal's onConfirmAndNavigate path.
-      // No parsing needed — import directly into address state.
-      const storedImportedCards = sessionStorage.getItem("importedCards");
-      if (storedImportedCards) {
-        sessionStorage.removeItem("importedCards");
-        try {
-          const cards = JSON.parse(storedImportedCards) as AddressCard[];
-          if (!cancelled) importAddresses(reindexAddresses(cards));
-        } catch {
-          if (!cancelled)
-            setSessionError("Failed to import the selected entries.");
-        }
-        return;
-      }
-
-      // Auto-saved draft — restore vehicles and addresses when navigating back
-      // from the results page. Lower priority than savePointFile/importedCards.
-      const draft = loadEditPageDraft();
-      if (draft) {
-        if (!cancelled) {
-          if (draft.vehicles.length > 0) importVehicles(draft.vehicles);
-          if (draft.addresses.length > 0) importAddresses(draft.addresses);
-        }
+      } finally {
+        // Signal that initial hydration is complete so the save effect can run.
+        // Runs on every exit path (success, error, early return) except cancellation.
+        if (!cancelled) setIsHydrated(true);
       }
     };
 
@@ -172,14 +179,14 @@ export default function Page() {
   }, [importAddresses, importVehicles]);
 
   useEffect(() => {
+    if (!isHydrated) return;
     const draftSaveTimer = window.setTimeout(() => {
       saveEditPageDraft(vehicleState.vehicles, addressState.addresses);
     }, 500);
-
     return () => {
       window.clearTimeout(draftSaveTimer);
     };
-  }, [vehicleState.vehicles, addressState.addresses]);
+  }, [isHydrated, vehicleState.vehicles, addressState.addresses]);
 
   const handleExportSession = useCallback(async () => {
     setSessionError(null);

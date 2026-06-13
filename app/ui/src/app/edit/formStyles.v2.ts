@@ -4,7 +4,7 @@
  */
 
 export const SIDEBAR_ROOT =
-  "hidden lg:block w-[68px] shrink-0 self-stretch bg-[var(--edit-stone-50)] overflow-hidden";
+  "hidden lg:block w-[68px] shrink-0 self-stretch bg-[var(--edit-stone-50)] overflow-hidden border-r border-[var(--edit-stone-200)]";
 
 export const SIDEBAR_NAV = "flex flex-col gap-4 pt-4 px-2";
 

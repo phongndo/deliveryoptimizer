@@ -2,7 +2,12 @@
 
 "use client";
 
-import { default as React, useCallback, useEffect, useState } from "react";
+import {
+  default as React,
+  useCallback,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { NAVBAR_V2_LOGO, NAVBAR_V2_ROOT } from "../edit/formStyles.v2";
 import styles from "../edit/edit.module.css";
 import MobileSidebar from "../components/sidebar/MobileSidebar";
@@ -11,7 +16,9 @@ import ExportRoutesModal from "./components/ExportRoutesModal";
 import MapComponent from "./components/Map";
 import MobileResultsNavbar from "./components/MobileResultsNavbar";
 import ResultsBottomSheet from "./components/ResultsBottomSheet";
-import ResultsNavRail from "./components/ResultsNavRail";
+import NavSidebar from "@/app/components/sidebar/Sidebar";
+import SidebarEditButton from "@/app/components/sidebar/SidebarEditButton";
+import SidebarResultsButton from "@/app/components/sidebar/SidebarResultsButton";
 import Sidebar from "./components/Sidebar";
 import { mockRouteToRoute } from "./data/mockRouteLoader";
 import mockRouteData from "./data/mock_route.json";
@@ -22,60 +29,80 @@ import {
 import type { PendingPinMove, Route } from "./types";
 import { downloadRoutesAsJsonFiles } from "./utils/downloadRouteJson";
 
-function readInitialRoutes(): {
-  routes: Route[];
-  error: string | null;
-  loadedFromSessionStorage: boolean;
-} {
+type RouteLoadResult = { routes: Route[]; error: string | null };
+
+const EMPTY_ROUTE_LOAD_RESULT: RouteLoadResult = { routes: [], error: null };
+
+let cachedRouteLoadKey = "";
+let cachedRouteLoadResult: RouteLoadResult = EMPTY_ROUTE_LOAD_RESULT;
+
+function readInitialRoutes(): RouteLoadResult {
   if (typeof window === "undefined") {
-    return { routes: [], error: null, loadedFromSessionStorage: false };
+    return EMPTY_ROUTE_LOAD_RESULT;
   }
   const forceMock = new URLSearchParams(window.location.search).get("mock");
-  // Intentional demo: ?mock=1 loads fixture routes for visual QA without running optimize.
-  if (forceMock === "1") {
-    return {
-      routes: [mockRouteToRoute(mockRouteData)],
-      error: null,
-      loadedFromSessionStorage: false,
-    };
+  const stored = sessionStorage.getItem("optimizeResults");
+  const cacheKey = forceMock === "1" ? "mock" : `stored:${stored ?? ""}`;
+
+  if (cacheKey === cachedRouteLoadKey) {
+    return cachedRouteLoadResult;
   }
 
-  const stored = sessionStorage.getItem("optimizeResults");
+  // Intentional demo: ?mock=1 loads fixture routes for visual QA without running optimize.
+  if (forceMock === "1") {
+    cachedRouteLoadKey = cacheKey;
+    cachedRouteLoadResult = {
+      routes: [mockRouteToRoute(mockRouteData)],
+      error: null,
+    };
+    return cachedRouteLoadResult;
+  }
+
   if (!stored) {
     // Intentional demo fallback: direct /results visits (no prior optimize) render mock
     // routes so the hi-fi UI can be reviewed without a full optimize flow.
-    return {
+    cachedRouteLoadKey = cacheKey;
+    cachedRouteLoadResult = {
       routes: [mockRouteToRoute(mockRouteData)],
       error: null,
-      loadedFromSessionStorage: false,
     };
+    return cachedRouteLoadResult;
   }
 
   try {
     const parsed = JSON.parse(stored) as Route[];
-    return { routes: parsed, error: null, loadedFromSessionStorage: true };
+    cachedRouteLoadKey = cacheKey;
+    cachedRouteLoadResult = { routes: parsed, error: null };
+    return cachedRouteLoadResult;
   } catch {
-    return {
+    cachedRouteLoadKey = cacheKey;
+    cachedRouteLoadResult = {
       routes: [],
       error:
         "Could not read saved route data. Please run optimize again from the edit page.",
-      loadedFromSessionStorage: false,
     };
+    return cachedRouteLoadResult;
   }
 }
 
-export default function ResultsPage() {
-  const [
-    { routes: initialRoutes, error: initialError, loadedFromSessionStorage },
-  ] = useState(readInitialRoutes);
+function subscribeToRouteStorage(onChange: () => void): () => void {
+  window.addEventListener("storage", onChange);
+  window.addEventListener("optimize-results-updated", onChange);
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener("optimize-results-updated", onChange);
+  };
+}
 
-  useEffect(() => {
-    if (loadedFromSessionStorage) {
-      sessionStorage.removeItem("optimizeResults");
-    }
-  }, [loadedFromSessionStorage]);
-  const [routes, setRoutes] = useState<Route[]>(initialRoutes);
-  const [error] = useState<string | null>(initialError);
+export default function ResultsPage() {
+  const routeLoadResult = useSyncExternalStore(
+    subscribeToRouteStorage,
+    readInitialRoutes,
+    () => EMPTY_ROUTE_LOAD_RESULT,
+  );
+  const [draftRoutes, setDraftRoutes] = useState<Route[] | null>(null);
+  const routes = draftRoutes ?? routeLoadResult.routes;
+  const error = routeLoadResult.error;
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSheetExpanded, setIsSheetExpanded] = useState(false);
   const [isEditMode, setIsEditMode] = useState(false);
@@ -84,6 +111,17 @@ export default function ResultsPage() {
   );
   const [exportOpen, setExportOpen] = useState(false);
   const [exportWarningOpen, setExportWarningOpen] = useState(false);
+
+  const setRoutes = useCallback(
+    (update: React.SetStateAction<Route[]>) => {
+      setDraftRoutes((prev) => {
+        const baseRoutes = prev ?? routes;
+        return typeof update === "function" ? update(baseRoutes) : update;
+      });
+    },
+    [routes],
+  );
+
 
   const updateStopNote = useCallback(
     (routeId: string, stopId: string, note: string) => {
@@ -113,7 +151,7 @@ export default function ResultsPage() {
         return next.every((r, i) => r === prev[i]) ? prev : next;
       });
     },
-    [],
+    [setRoutes],
   );
 
   const handleEditModeChange = useCallback((value: boolean) => {
@@ -139,7 +177,7 @@ export default function ResultsPage() {
       ),
     );
     setPendingPinMove(null);
-  }, [pendingPinMove]);
+  }, [pendingPinMove, setRoutes]);
 
   const handlePendingPinMove = useCallback(
     (vehicleId: string, stopId: string, lat: number, lng: number) => {
@@ -210,7 +248,7 @@ export default function ResultsPage() {
         ...prev.slice(routeIndex + 1),
       ];
     });
-  }, []);
+  }, [setRoutes]);
 
   const handleDeleteRoute = useCallback(
     (vehicleId: string) => {
@@ -219,7 +257,7 @@ export default function ResultsPage() {
         setPendingPinMove(null);
       }
     },
-    [pendingPinMove],
+    [pendingPinMove, setRoutes],
   );
 
   return (
@@ -280,7 +318,10 @@ export default function ResultsPage() {
         </div>
       </header>
       <div className="hidden lg:flex flex-1 min-h-0">
-        <ResultsNavRail />
+        <NavSidebar>
+          <SidebarEditButton />
+          <SidebarResultsButton />
+        </NavSidebar>
         {/* Hi-fi routes panel width (28rem); always visible on desktop */}
         <div className="shrink-0 h-full w-[28rem] overflow-hidden">
           <Sidebar

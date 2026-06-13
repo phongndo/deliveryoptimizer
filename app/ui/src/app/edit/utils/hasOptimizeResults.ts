@@ -20,3 +20,9 @@ export function setOptimizeResults(results: Route[]): void {
   sessionStorage.setItem("optimizeResults", JSON.stringify(results));
   window.dispatchEvent(new Event("optimize-results-updated"));
 }
+
+export function clearOptimizeResults(): void {
+  if (typeof window === "undefined") return;
+  sessionStorage.removeItem("optimizeResults");
+  window.dispatchEvent(new Event("optimize-results-updated"));
+}

@@ -69,10 +69,12 @@ function readInitialRoutes(): RouteLoadResult {
   }
 
   if (!stored) {
-    // No prior optimize run for this session (e.g. /results visited directly): there is
-    // nothing to show, so the page falls through to its normal empty-routes UI.
     cachedRouteLoadKey = cacheKey;
-    cachedRouteLoadResult = EMPTY_ROUTE_LOAD_RESULT;
+    cachedRouteLoadResult = {
+      routes: [],
+      error:
+        "No optimized routes found. Please run optimize from the edit page.",
+    };
     return cachedRouteLoadResult;
   }
 

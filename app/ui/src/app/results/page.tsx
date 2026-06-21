@@ -31,6 +31,7 @@ import {
 } from "./formStyles.mobile";
 import type { PendingPinMove, Route } from "./types";
 import { downloadRoutesAsJsonFiles } from "./utils/downloadRouteJson";
+import { duplicateRoute } from "./utils/duplicateRoute";
 
 // Dev-only QA tooling (see the ?mock=1 branch below) must never run in production.
 const MOCK_DATA_ENABLED = process.env.NODE_ENV !== "production";
@@ -284,15 +285,7 @@ export default function ResultsPage() {
         if (routeIndex === -1) return prev;
         const source = prev[routeIndex]!;
         const suffix = Date.now().toString(36);
-        const copy: Route = {
-          ...source,
-          vehicleId: `${source.vehicleId}-copy-${suffix}`,
-          driverName: `${source.driverName} (copy)`,
-          stops: source.stops.map((stop, stopIndex) => ({
-            ...stop,
-            id: `${stop.id}-copy-${suffix}-${stopIndex}`,
-          })),
-        };
+        const copy = duplicateRoute(source, suffix);
         return [
           ...prev.slice(0, routeIndex + 1),
           copy,

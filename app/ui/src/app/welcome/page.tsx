@@ -3,9 +3,17 @@
 import { useRouter } from "next/navigation";
 import ShellNavbar from "@/app/components/ShellNavbar";
 import { PageFooter } from "@/app/utils/routeUtils";
+import { clearEditPageDraft } from "@/lib/session/editPageDraft";
+import { clearOptimizeResults } from "@/app/edit/utils/hasOptimizeResults";
 
 export default function WelcomePage() {
   const router = useRouter();
+
+  const handleNewSession = () => {
+    clearEditPageDraft();
+    clearOptimizeResults();
+    router.push("/edit");
+  };
 
   return (
     <>
@@ -196,11 +204,11 @@ export default function WelcomePage() {
               role="button"
               tabIndex={0}
               aria-label="New user — continue"
-              onClick={() => router.push("/edit")}
+              onClick={handleNewSession}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
-                  router.push("/edit");
+                  handleNewSession();
                 }
               }}
             >

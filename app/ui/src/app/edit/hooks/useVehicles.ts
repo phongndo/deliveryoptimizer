@@ -149,6 +149,32 @@ export function useVehicles() {
     [],
   );
 
+  const setVehiclesStartLocation = useCallback(
+    (
+      ids: number[],
+      startLocation: string,
+      location: { lat: number; lng: number; state?: string | null },
+    ) => {
+      const idSet = new Set(ids);
+      setVehicles((prev) =>
+        prev.map((vehicle) =>
+          idSet.has(vehicle.id)
+            ? {
+                ...vehicle,
+                startLocation,
+                cachedLocation: {
+                  lat: location.lat,
+                  lng: location.lng,
+                  state: location.state ?? null,
+                },
+              }
+            : vehicle,
+        ),
+      );
+    },
+    [],
+  );
+
   return {
     vehicles,
     updateVehicle,
@@ -161,5 +187,6 @@ export function useVehicles() {
     activeVehicleIsValid,
     allVehiclesLocked,
     cacheVehicleLocation,
+    setVehiclesStartLocation,
   };
 }

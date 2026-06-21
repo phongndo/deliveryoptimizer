@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useHasOptimizeResults } from "@/app/edit/hooks/useHasOptimizeResults";
 import {
   MOBILE_SIDEBAR_CLOSE_BTN,
   MOBILE_SIDEBAR_HEADER,
@@ -79,6 +80,8 @@ type MobileSidebarProps = {
 export default function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
   const pathname = usePathname();
   const isEditActive = pathname === "/edit";
+  const isResultsActive = pathname === "/results";
+  const hasOptimizeResults = useHasOptimizeResults();
 
   return (
     <div
@@ -131,17 +134,39 @@ export default function MobileSidebar({ isOpen, onClose }: MobileSidebarProps) {
             <span className={MOBILE_SIDEBAR_NAV_LABEL}>Edit</span>
           </Link>
 
-          <Link
-            href="#"
-            className={MOBILE_SIDEBAR_NAV_ITEM_DISABLED}
-            aria-disabled={true}
-            tabIndex={-1}
-          >
-            <span className={MOBILE_SIDEBAR_NAV_PILL_INACTIVE}>
-              {SVG_RESULTS_ICON}
+          {isResultsActive ? (
+            <span
+              className={MOBILE_SIDEBAR_NAV_ITEM_ACTIVE}
+              aria-current="page"
+            >
+              <span className={MOBILE_SIDEBAR_NAV_PILL_ACTIVE}>
+                {SVG_RESULTS_ICON}
+              </span>
+              <span className={MOBILE_SIDEBAR_NAV_LABEL}>Results</span>
             </span>
-            <span className={MOBILE_SIDEBAR_NAV_LABEL}>Results</span>
-          </Link>
+          ) : hasOptimizeResults ? (
+            <Link
+              href="/results"
+              className={MOBILE_SIDEBAR_NAV_ITEM_INACTIVE}
+              onClick={onClose}
+            >
+              <span className={MOBILE_SIDEBAR_NAV_PILL_INACTIVE}>
+                {SVG_RESULTS_ICON}
+              </span>
+              <span className={MOBILE_SIDEBAR_NAV_LABEL}>Results</span>
+            </Link>
+          ) : (
+            <button
+              type="button"
+              disabled={true}
+              className={MOBILE_SIDEBAR_NAV_ITEM_DISABLED}
+            >
+              <span className={MOBILE_SIDEBAR_NAV_PILL_INACTIVE}>
+                {SVG_RESULTS_ICON}
+              </span>
+              <span className={MOBILE_SIDEBAR_NAV_LABEL}>Results</span>
+            </button>
+          )}
         </nav>
       </div>
     </div>

@@ -19,3 +19,15 @@ export function deliveryTimeFilled(
 export function capitalize(s: string): string {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : "";
 }
+
+/**
+ * True when an address has a geocoded location with a known state, so it's
+ * safe to reuse without re-geocoding. Addresses imported via a save point can
+ * carry coordinates with a null state, which must fall through to a fresh
+ * geocode call since the solver requires a state for validation.
+ */
+export function hasCachedLocationWithState(
+  a: Pick<AddressCard, "cachedLocation">,
+): boolean {
+  return a.cachedLocation?.state != null;
+}

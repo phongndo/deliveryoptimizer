@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useId, useState } from "react";
 import { createPortal } from "react-dom";
 import { useFocusTrap } from "@/app/edit/hooks/useFocusTrap";
+import type { WhatsAppSendResult } from "@/lib/whatsapp/whatsappClient";
 import {
   formatUsPhoneNumber,
   isComplete10DigitUsPhone,
@@ -26,6 +27,10 @@ function formatSentAt(iso: string): string {
   } catch {
     return iso;
   }
+}
+
+function pickSentVehicleIds(results: WhatsAppSendResult[]): string[] {
+  return results.filter((r) => r.status === "sent").map((r) => r.vehicleId);
 }
 
 export default function SendRoutesModal({
@@ -142,10 +147,24 @@ function SendRoutesModalPanel({
         return;
       }
 
-      onSendComplete(
-        selectedRoutes.map((r) => r.vehicleId),
-        new Date().toISOString(),
-      );
+      const body = (await res.json().catch(() => null)) as {
+        results?: WhatsAppSendResult[];
+      } | null;
+      const sentIds = pickSentVehicleIds(body?.results ?? []);
+      const failedCount = selectedRoutes.length - sentIds.length;
+
+      if (sentIds.length > 0) {
+        onSendComplete(sentIds, new Date().toISOString());
+      }
+
+      if (failedCount > 0) {
+        setSendState({
+          status: "error",
+          message: `${failedCount} route${failedCount > 1 ? "s" : ""} failed to send. Try again.`,
+        });
+        return;
+      }
+
       onClose();
     } catch {
       setSendState({

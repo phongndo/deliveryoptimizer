@@ -80,13 +80,7 @@ import {
   ConfirmIconButton,
   DeleteIconButton,
 } from "@/app/edit/components/shared/RowIconButtons";
-
-function formatPhoneNumber(raw: string): string {
-  const digits = raw.replace(/\D/g, "").slice(0, 10);
-  if (digits.length <= 3) return digits;
-  if (digits.length <= 6) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
-  return `${digits.slice(0, 3)}-${digits.slice(3, 6)}-${digits.slice(6)}`;
-}
+import { formatUsPhoneNumber } from "@/lib/utils/phone";
 
 function parseRecipientAddress(addr: string): Partial<LocationAddress> {
   const parts = addr.split(", ");
@@ -368,7 +362,7 @@ export default function AddressCard({
                           updateAddress(
                             a.id,
                             "phoneNumber",
-                            formatPhoneNumber(e.target.value),
+                            formatUsPhoneNumber(e.target.value),
                           )
                         }
                         placeholder="123-456-7890"
@@ -772,7 +766,7 @@ export default function AddressCard({
                         updateAddress(
                           a.id,
                           "phoneNumber",
-                          formatPhoneNumber(e.target.value),
+                          formatUsPhoneNumber(e.target.value),
                         )
                       }
                       placeholder="123-456-7890"

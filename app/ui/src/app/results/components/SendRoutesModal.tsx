@@ -3,7 +3,11 @@
 import { useCallback, useEffect, useId, useState } from "react";
 import { createPortal } from "react-dom";
 import { useFocusTrap } from "@/app/edit/hooks/useFocusTrap";
-import { E164_PHONE_REGEX } from "@/lib/validation/whatsapp.schema";
+import {
+  formatUsPhoneNumber,
+  isComplete10DigitUsPhone,
+  toE164UsPhone,
+} from "@/lib/utils/phone";
 import { useIsClient } from "../hooks/useIsClient";
 import type { Route } from "../types";
 import { routeColorHex } from "../utils/routeColors";
@@ -15,10 +19,6 @@ type SendRoutesModalProps = {
   onUpdateDriverPhone: (vehicleId: string, phone: string) => void;
   onSendComplete: (vehicleIds: string[], sentAtIso: string) => void;
 };
-
-function isValidPhone(phone: string): boolean {
-  return E164_PHONE_REGEX.test(phone.trim());
-}
 
 function formatSentAt(iso: string): string {
   try {
@@ -108,7 +108,9 @@ function SendRoutesModalPanel({
   const canSend =
     selectedCount > 0 &&
     !isSending &&
-    selectedRoutes.every((r) => isValidPhone(r.driverPhoneNumber ?? ""));
+    selectedRoutes.every((r) =>
+      isComplete10DigitUsPhone(r.driverPhoneNumber ?? ""),
+    );
 
   const handleSend = useCallback(async () => {
     if (!canSend) return;
@@ -117,7 +119,7 @@ function SendRoutesModalPanel({
     const payload = {
       routes: selectedRoutes.map((route) => ({
         vehicleId: route.vehicleId,
-        driverPhoneNumber: (route.driverPhoneNumber ?? "").trim(),
+        driverPhoneNumber: toE164UsPhone(route.driverPhoneNumber ?? ""),
         route,
       })),
     };
@@ -220,7 +222,7 @@ function SendRoutesModalPanel({
                 const checked = selectedIds.has(route.vehicleId);
                 const touched = touchedIds.has(route.vehicleId);
                 const phone = route.driverPhoneNumber ?? "";
-                const valid = isValidPhone(phone);
+                const valid = isComplete10DigitUsPhone(phone);
                 const showError = checked && touched && !valid;
                 const accent = routeColorHex(idx);
                 const inputId = `send-routes-phone-${route.vehicleId}`;
@@ -265,13 +267,17 @@ function SendRoutesModalPanel({
                         <input
                           id={inputId}
                           type="tel"
-                          inputMode="tel"
+                          inputMode="numeric"
                           autoComplete="tel"
                           disabled={!checked || isSending}
-                          placeholder="+14155551234"
+                          placeholder="123-456-7890"
+                          maxLength={12}
                           value={phone}
                           onChange={(e) =>
-                            onUpdateDriverPhone(route.vehicleId, e.target.value)
+                            onUpdateDriverPhone(
+                              route.vehicleId,
+                              formatUsPhoneNumber(e.target.value),
+                            )
                           }
                           onBlur={() => markTouched(route.vehicleId)}
                           aria-invalid={showError ? "true" : "false"}
@@ -283,7 +289,7 @@ function SendRoutesModalPanel({
                           className="mt-1 min-h-[1rem] text-[12px] leading-tight text-red-600"
                         >
                           {showError
-                            ? "Enter a valid phone number with country code, e.g. +14155551234"
+                            ? "Enter a valid 10-digit phone number, e.g. 123-456-7890"
                             : ""}
                         </p>
                       </span>

@@ -2,9 +2,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
   mapEditStateToOptimizeRequest,
+  mapEditStateToSessionSave,
   mapOptimizeRequestToEditState,
 } from "@/app/edit/utils/sessionMapper";
 import { geocodeAddress } from "@/app/components/AddressGeocoder/utils/nominatim";
+import { buildSessionSave } from "@/lib/session/exportSession";
 import { loadSessionFromFile } from "@/lib/session/importSession";
 import type { OptimizeRequest } from "@/lib/types/optimize.types";
 
@@ -110,6 +112,95 @@ describe("mapOptimizeRequestToEditState", () => {
       lat: 36.1,
       lng: -115.1,
       state: "Nevada",
+    });
+  });
+
+  it("exports a save session without requiring vehicle start locations", async () => {
+    mockGeocodeAddress.mockResolvedValueOnce({
+      lat: 36.1,
+      lng: -115.1,
+      state: "Nevada",
+    });
+
+    const session = await mapEditStateToSessionSave(
+      [
+        {
+          id: 1,
+          locked: true,
+          editingExisting: false,
+          name: "Driver 1",
+          startLocation: "",
+          type: "car",
+          capacityUnit: "units",
+          capacity: 10,
+          available: true,
+          departureTime: "",
+        },
+      ],
+      [
+        {
+          id: 2,
+          locked: true,
+          editingExisting: false,
+          recipientName: "",
+          phoneNumber: "",
+          recipientAddress: "456 Delivery Ave",
+          timeBuffer: 0,
+          deliveryTimeStart: "",
+          deliveryTimeEnd: "",
+          deliveryQuantity: 3,
+          notes: "",
+        },
+      ],
+    );
+
+    expect(mockGeocodeAddress).toHaveBeenCalledTimes(1);
+    expect(mockGeocodeAddress).toHaveBeenCalledWith("456 Delivery Ave");
+    expect(session.vehicles[0]).not.toHaveProperty("startLocation");
+    expect(session.deliveries[0].location).toEqual({
+      lat: 36.1,
+      lng: -115.1,
+      state: "Nevada",
+    });
+  });
+
+  it("re-imports a saved session that omits vehicle start locations", async () => {
+    const saveFile = buildSessionSave(
+      {
+        vehicles: [
+          {
+            id: 1,
+            vehicleType: "car",
+            driverName: "Driver 1",
+            capacity: { type: "units", value: 10 },
+          },
+        ],
+        deliveries: [
+          {
+            id: 2,
+            address: "456 Delivery Ave",
+            location: { lat: 36.1, lng: -115.1 },
+            demand: { type: "units", value: 3 },
+          },
+        ],
+      },
+      new Date("2026-04-25T18:00:00.000Z"),
+    );
+    const file = new File([JSON.stringify(saveFile)], "session.json", {
+      type: "application/json",
+    });
+
+    const loaded = await loadSessionFromFile(file);
+    const state = mapOptimizeRequestToEditState(loaded);
+
+    expect(state.vehicles[0]).toMatchObject({
+      name: "Driver 1",
+      startLocation: "",
+    });
+    expect(state.vehicles[0].cachedLocation).toBeUndefined();
+    expect(state.addresses[0]).toMatchObject({
+      recipientAddress: "456 Delivery Ave",
+      cachedLocation: { lat: 36.1, lng: -115.1, state: null },
     });
   });
 

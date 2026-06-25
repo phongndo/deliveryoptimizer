@@ -1,6 +1,7 @@
 import { ZodError, z } from "zod";
 
 import type { DriverRoute, OptimizeRequestLike } from "./types";
+import { migrateSessionSaveFile } from "@/lib/validation/session.schema";
 
 const MAX_SESSION_FILE_BYTES = 1_000_000;
 
@@ -34,12 +35,6 @@ const optimizeRequestSchema = z.object({
   vehicles: z.array(vehicleSchema),
 });
 
-const sessionSaveV1Schema = z.object({
-  version: z.literal(1),
-  savedAt: z.string().datetime(),
-  data: optimizeRequestSchema,
-});
-
 const persistedStopSchema = z.object({
   id: z.string(),
   stopNumber: z.number(),
@@ -67,7 +62,6 @@ const persistedRouteStateSchema = z.object({
   route: persistedRouteSchema,
 });
 
-type SessionSaveFile = z.infer<typeof sessionSaveV1Schema>;
 type PersistedRouteState = z.infer<typeof persistedRouteStateSchema>;
 
 // Guard the browser import path before we spend time parsing a file.
@@ -104,7 +98,7 @@ export function loadSessionFromText(text: string): OptimizeRequestLike {
 
   try {
     // Preferred route-manager save file shape.
-    return parseSessionSaveFile(parsed).data;
+    return migrateSessionSaveFile(parsed).data;
   } catch (error) {
     try {
       // Also accept the raw optimize request shape for test fixtures and
@@ -131,10 +125,6 @@ export function createPersistedRouteState(
 
 export function parsePersistedRouteState(input: unknown): PersistedRouteState {
   return persistedRouteStateSchema.parse(input);
-}
-
-function parseSessionSaveFile(input: unknown): SessionSaveFile {
-  return sessionSaveV1Schema.parse(input);
 }
 
 function formatValidationError(error: unknown): string | null {

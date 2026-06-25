@@ -2,28 +2,37 @@ import { describe, expect, it } from "vitest";
 
 import { loadSessionFromText } from "@/lib/driver-route/importSession";
 import { transformSessionToDriverRoute } from "@/lib/driver-route/transformSession";
+import { buildSessionSave } from "@/lib/session/exportSession";
 
 describe("driver route import", () => {
   it("loads a saved route-manager session into the driver_assist route shape", () => {
     const session = loadSessionFromText(
-      JSON.stringify({
-        version: 1,
-        savedAt: "2026-05-16T12:00:00.000Z",
-        data: {
-          deliveries: [
-            {
-              id: 42,
-              recipientName: "Recipient 1",
-              phoneNumber: "555-0100",
-              address: "12 Compiler Way",
-              notes: "Leave near side door",
-              location: { lat: 37.1, lng: -122.2 },
-              demand: { value: 3 },
-            },
-          ],
-          vehicles: [{ id: 7, driverName: "driver1" }],
-        },
-      }),
+      JSON.stringify(
+        buildSessionSave(
+          {
+            deliveries: [
+              {
+                id: 42,
+                recipientName: "Recipient 1",
+                phoneNumber: "555-555-0100",
+                address: "12 Compiler Way",
+                notes: "Leave near side door",
+                location: { lat: 37.1, lng: -122.2 },
+                demand: { type: "units", value: 3 },
+              },
+            ],
+            vehicles: [
+              {
+                id: 7,
+                driverName: "driver1",
+                vehicleType: "car",
+                capacity: { type: "units", value: 10 },
+              },
+            ],
+          },
+          new Date("2026-05-16T12:00:00.000Z"),
+        ),
+      ),
     );
 
     expect(transformSessionToDriverRoute(session)).toEqual({
@@ -35,7 +44,7 @@ describe("driver route import", () => {
           stopNumber: 1,
           address: "12 Compiler Way",
           customerName: "Recipient 1",
-          phoneNumber: "555-0100",
+          phoneNumber: "555-555-0100",
           packageCount: 3,
           notes: "Leave near side door",
           status: "pending",
@@ -43,6 +52,48 @@ describe("driver route import", () => {
           lng: -122.2,
           completedAt: undefined,
           failureReason: undefined,
+        },
+      ],
+    });
+  });
+
+  it("loads the same saved session shape when vehicle start location is absent", () => {
+    const session = loadSessionFromText(
+      JSON.stringify(
+        buildSessionSave(
+          {
+            deliveries: [
+              {
+                id: 11,
+                recipientName: "Recipient 3",
+                address: "500 Save St",
+                location: { lat: 34.1, lng: -118.2 },
+                demand: { type: "units", value: 2 },
+              },
+            ],
+            vehicles: [
+              {
+                id: 3,
+                driverName: "driver3",
+                vehicleType: "truck",
+                capacity: { type: "units", value: 20 },
+              },
+            ],
+          },
+          new Date("2026-05-16T12:00:00.000Z"),
+        ),
+      ),
+    );
+
+    expect(transformSessionToDriverRoute(session)).toMatchObject({
+      driverName: "driver3",
+      routeLabel: "Route 3 - 1 stops",
+      stops: [
+        {
+          id: "11",
+          customerName: "Recipient 3",
+          address: "500 Save St",
+          packageCount: 2,
         },
       ],
     });

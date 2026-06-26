@@ -13,7 +13,8 @@ export type DecodedScreenshot = {
 };
 
 export function decodeScreenshotDataUrl(dataUrl: string): DecodedScreenshot {
-  const match = /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
+  const match =
+    /^data:(image\/(?:png|jpeg|webp));base64,([A-Za-z0-9+/=]+)$/.exec(dataUrl);
   if (!match) {
     throw new Error("Screenshot must be a PNG, JPEG, or WebP data URL.");
   }
@@ -31,7 +32,7 @@ export function decodeScreenshotDataUrl(dataUrl: string): DecodedScreenshot {
 
 export async function uploadFeedbackScreenshot(
   dataUrl: string,
-  now = new Date()
+  now = new Date(),
 ): Promise<{ bucket: string; objectName: string }> {
   const bucket = process.env.FEEDBACK_SCREENSHOT_BUCKET;
   if (!bucket) {
@@ -45,7 +46,7 @@ export async function uploadFeedbackScreenshot(
 
   const response = await fetch(
     `https://storage.googleapis.com/upload/storage/v1/b/${encodeURIComponent(
-      bucket
+      bucket,
     )}/o?uploadType=media&name=${encodeURIComponent(objectName)}`,
     {
       method: "POST",
@@ -54,7 +55,7 @@ export async function uploadFeedbackScreenshot(
         "Content-Type": screenshot.mimeType,
       },
       body: new Uint8Array(screenshot.bytes),
-    }
+    },
   );
 
   if (!response.ok) {
@@ -74,11 +75,11 @@ export async function isFeedbackShutdownGuardActive(): Promise<boolean> {
     const token = await getGoogleAccessToken();
     const response = await fetch(
       `https://storage.googleapis.com/storage/v1/b/${encodeURIComponent(
-        bucket
+        bucket,
       )}/o/${encodeURIComponent("feedback/guard/shutdown.json")}`,
       {
         headers: { Authorization: `Bearer ${token}` },
-      }
+      },
     );
 
     return response.ok;
@@ -87,7 +88,9 @@ export async function isFeedbackShutdownGuardActive(): Promise<boolean> {
   }
 }
 
-export async function writeFeedbackShutdownGuard(reason: string): Promise<void> {
+export async function writeFeedbackShutdownGuard(
+  reason: string,
+): Promise<void> {
   const bucket = process.env.FEEDBACK_SCREENSHOT_BUCKET;
   if (!bucket) return;
 
@@ -99,7 +102,7 @@ export async function writeFeedbackShutdownGuard(reason: string): Promise<void> 
 
   await fetch(
     `https://storage.googleapis.com/upload/storage/v1/b/${encodeURIComponent(
-      bucket
+      bucket,
     )}/o?uploadType=media&name=${encodeURIComponent("feedback/guard/shutdown.json")}`,
     {
       method: "POST",
@@ -108,7 +111,7 @@ export async function writeFeedbackShutdownGuard(reason: string): Promise<void> 
         "Content-Type": "application/json",
       },
       body,
-    }
+    },
   );
 }
 
@@ -123,7 +126,9 @@ async function getGoogleAccessToken(): Promise<string> {
 
   const json = (await response.json()) as MetadataTokenResponse;
   if (!json.access_token) {
-    throw new Error("Google metadata token response did not include an access token.");
+    throw new Error(
+      "Google metadata token response did not include an access token.",
+    );
   }
 
   return json.access_token;

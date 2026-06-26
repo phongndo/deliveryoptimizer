@@ -15,7 +15,7 @@ type RecaptchaSiteVerifyResponse = {
 
 export async function verifyRecaptchaToken(
   token: string | undefined,
-  remoteIp: string | undefined
+  remoteIp: string | undefined,
 ): Promise<RecaptchaResult> {
   const secret = process.env.FEEDBACK_RECAPTCHA_SECRET;
   if (!secret) return { ok: true };
@@ -28,11 +28,14 @@ export async function verifyRecaptchaToken(
   if (remoteIp) params.set("remoteip", remoteIp);
 
   try {
-    const response = await fetch("https://www.google.com/recaptcha/api/siteverify", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: params.toString(),
-    });
+    const response = await fetch(
+      "https://www.google.com/recaptcha/api/siteverify",
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: params.toString(),
+      },
+    );
 
     if (!response.ok) return { ok: false, reason: "recaptcha_unavailable" };
 
@@ -46,7 +49,11 @@ export async function verifyRecaptchaToken(
       };
     }
     if (typeof result.score === "number" && result.score < minScore) {
-      return { ok: false, reason: "recaptcha_score_too_low", score: result.score };
+      return {
+        ok: false,
+        reason: "recaptcha_score_too_low",
+        score: result.score,
+      };
     }
 
     return { ok: true, score: result.score };
@@ -55,9 +62,14 @@ export async function verifyRecaptchaToken(
   }
 }
 
-export function createGitHubAppJwt(nowSeconds = Math.floor(Date.now() / 1000)): string {
+export function createGitHubAppJwt(
+  nowSeconds = Math.floor(Date.now() / 1000),
+): string {
   const appId = process.env.FEEDBACK_GITHUB_APP_ID;
-  const privateKey = process.env.FEEDBACK_GITHUB_PRIVATE_KEY?.replace(/\\n/g, "\n");
+  const privateKey = process.env.FEEDBACK_GITHUB_PRIVATE_KEY?.replace(
+    /\\n/g,
+    "\n",
+  );
 
   if (!appId || !privateKey) {
     throw new Error("GitHub App credentials are not configured.");
@@ -69,10 +81,12 @@ export function createGitHubAppJwt(nowSeconds = Math.floor(Date.now() / 1000)): 
       iat: nowSeconds - 60,
       exp: nowSeconds + 540,
       iss: appId,
-    })
+    }),
   );
   const unsigned = `${header}.${payload}`;
-  const signature = createSign("RSA-SHA256").update(unsigned).sign(privateKey, "base64url");
+  const signature = createSign("RSA-SHA256")
+    .update(unsigned)
+    .sign(privateKey, "base64url");
 
   return `${unsigned}.${signature}`;
 }

@@ -1,6 +1,14 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  FormEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 
 import {
@@ -15,7 +23,10 @@ declare global {
   interface Window {
     grecaptcha?: {
       ready: (callback: () => void) => void;
-      execute: (siteKey: string, options: { action: string }) => Promise<string>;
+      execute: (
+        siteKey: string,
+        options: { action: string },
+      ) => Promise<string>;
     };
   }
 }
@@ -37,7 +48,12 @@ type FeedbackResponse = {
   error?: string;
 };
 
-const categories: FeedbackCategory[] = ["bug", "enhancement", "general", "question"];
+const categories: FeedbackCategory[] = [
+  "bug",
+  "enhancement",
+  "general",
+  "question",
+];
 
 export default function FeedbackLauncher() {
   const pathname = usePathname();
@@ -54,13 +70,14 @@ export default function FeedbackLauncher() {
 
   const canSubmit = useMemo(
     () => submitState.kind !== "submitting" && message.trim().length >= 8,
-    [message, submitState.kind]
+    [message, submitState.kind],
   );
   const shouldClearFooter = pathname === "/" || pathname === "/welcome";
 
   useEffect(() => {
     const siteKey = process.env.NEXT_PUBLIC_FEEDBACK_RECAPTCHA_SITE_KEY;
-    if (!siteKey || document.querySelector("script[data-feedback-recaptcha]")) return;
+    if (!siteKey || document.querySelector("script[data-feedback-recaptcha]"))
+      return;
 
     const script = document.createElement("script");
     script.src = `https://www.google.com/recaptcha/api.js?render=${encodeURIComponent(siteKey)}`;
@@ -76,7 +93,9 @@ export default function FeedbackLauncher() {
     };
     const onRejection = (event: PromiseRejectionEvent) => {
       const reason = event.reason;
-      setLastClientError(reason instanceof Error ? reason.message : String(reason));
+      setLastClientError(
+        reason instanceof Error ? reason.message : String(reason),
+      );
     };
 
     window.addEventListener("error", onError);
@@ -126,7 +145,10 @@ export default function FeedbackLauncher() {
       });
 
       const canvas = document.createElement("canvas");
-      const scale = Math.min(1, 1600 / Math.max(video.videoWidth, video.videoHeight));
+      const scale = Math.min(
+        1,
+        1600 / Math.max(video.videoWidth, video.videoHeight),
+      );
       canvas.width = Math.max(1, Math.round(video.videoWidth * scale));
       canvas.height = Math.max(1, Math.round(video.videoHeight * scale));
       const context = canvas.getContext("2d");
@@ -139,10 +161,12 @@ export default function FeedbackLauncher() {
         name: `feedback-screenshot-${new Date().toISOString().replace(/[:.]/g, "-")}.jpg`,
       });
     } catch (error) {
-      if (error instanceof DOMException && error.name === "NotAllowedError") return;
+      if (error instanceof DOMException && error.name === "NotAllowedError")
+        return;
       setSubmitState({
         kind: "error",
-        message: error instanceof Error ? error.message : "Screenshot capture failed.",
+        message:
+          error instanceof Error ? error.message : "Screenshot capture failed.",
       });
     } finally {
       stream?.getTracks().forEach((track) => track.stop());
@@ -192,7 +216,10 @@ export default function FeedbackLauncher() {
       } catch (error) {
         setSubmitState({
           kind: "error",
-          message: error instanceof Error ? error.message : "Feedback could not be submitted.",
+          message:
+            error instanceof Error
+              ? error.message
+              : "Feedback could not be submitted.",
         });
       }
     },
@@ -205,7 +232,7 @@ export default function FeedbackLauncher() {
       message,
       reproductionSteps,
       screenshot,
-    ]
+    ],
   );
 
   return (
@@ -220,7 +247,13 @@ export default function FeedbackLauncher() {
         aria-label="Report bug or feedback"
       >
         <span className={styles.mark} aria-hidden="true">
-          <img className={styles.markIcon} src="/Manage/warning.svg" alt="" />
+          <Image
+            className={styles.markIcon}
+            src="/Manage/warning.svg"
+            alt=""
+            width={24}
+            height={24}
+          />
         </span>
         <span className={styles.launcherLabel} aria-hidden="true">
           Report bug / feedback
@@ -228,7 +261,11 @@ export default function FeedbackLauncher() {
       </button>
 
       {isOpen && (
-        <div className={styles.backdrop} role="presentation" onMouseDown={resetAndClose}>
+        <div
+          className={styles.backdrop}
+          role="presentation"
+          onMouseDown={resetAndClose}
+        >
           <section
             className={styles.panel}
             role="dialog"
@@ -238,9 +275,12 @@ export default function FeedbackLauncher() {
           >
             <div className={styles.header}>
               <div>
-                <h2 className={styles.title} id="feedback-title">Report a bug or feedback</h2>
+                <h2 className={styles.title} id="feedback-title">
+                  Report a bug or feedback
+                </h2>
                 <p className={styles.subtitle}>
-                  Send a bug, enhancement, or note without leaving your route work.
+                  Send a bug, enhancement, or note without leaving your route
+                  work.
                 </p>
               </div>
               <button
@@ -257,7 +297,11 @@ export default function FeedbackLauncher() {
             <form className={styles.form} onSubmit={submitFeedback}>
               <div className={styles.label}>
                 Type
-                <div className={styles.segmented} role="radiogroup" aria-label="Feedback type">
+                <div
+                  className={styles.segmented}
+                  role="radiogroup"
+                  aria-label="Feedback type"
+                >
                   {categories.map((item) => (
                     <button
                       key={item}
@@ -288,7 +332,8 @@ export default function FeedbackLauncher() {
               </label>
 
               <label className={styles.label}>
-                How can we reproduce it? <span className={styles.optional}>Optional</span>
+                How can we reproduce it?{" "}
+                <span className={styles.optional}>Optional</span>
                 <textarea
                   className={styles.textarea}
                   value={reproductionSteps}
@@ -322,8 +367,8 @@ export default function FeedbackLauncher() {
 
               <div className={styles.screenshotRow}>
                 <p className={styles.screenshotText}>
-                  Screenshot is optional. Your browser will ask what to share before anything is
-                  captured.
+                  Screenshot is optional. Your browser will ask what to share
+                  before anything is captured.
                 </p>
                 <button
                   type="button"
@@ -338,9 +383,14 @@ export default function FeedbackLauncher() {
               {screenshot && (
                 <div className={styles.preview}>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={screenshot.dataUrl} alt="Feedback screenshot preview" />
+                  <img
+                    src={screenshot.dataUrl}
+                    alt="Feedback screenshot preview"
+                  />
                   <div className={styles.previewActions}>
-                    <span className={styles.previewName}>{screenshot.name}</span>
+                    <span className={styles.previewName}>
+                      {screenshot.name}
+                    </span>
                     <button
                       type="button"
                       className={styles.secondaryButton}
@@ -353,17 +403,27 @@ export default function FeedbackLauncher() {
               )}
 
               {submitState.kind === "error" && (
-                <div className={`${styles.status} ${styles.statusError}`} role="alert">
+                <div
+                  className={`${styles.status} ${styles.statusError}`}
+                  role="alert"
+                >
                   {submitState.message}
                 </div>
               )}
               {submitState.kind === "success" && (
-                <div className={`${styles.status} ${styles.statusSuccess}`} role="status">
+                <div
+                  className={`${styles.status} ${styles.statusSuccess}`}
+                  role="status"
+                >
                   Feedback submitted
                   {submitState.issueUrl ? (
                     <>
                       {" "}
-                      <a href={submitState.issueUrl} target="_blank" rel="noreferrer">
+                      <a
+                        href={submitState.issueUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
                         View issue
                       </a>
                     </>
@@ -372,11 +432,21 @@ export default function FeedbackLauncher() {
               )}
 
               <div className={styles.footer}>
-                <button type="button" className={styles.secondaryButton} onClick={resetAndClose}>
+                <button
+                  type="button"
+                  className={styles.secondaryButton}
+                  onClick={resetAndClose}
+                >
                   Cancel
                 </button>
-                <button type="submit" className={styles.primaryButton} disabled={!canSubmit}>
-                  {submitState.kind === "submitting" ? "Sending..." : "Send feedback"}
+                <button
+                  type="submit"
+                  className={styles.primaryButton}
+                  disabled={!canSubmit}
+                >
+                  {submitState.kind === "submitting"
+                    ? "Sending..."
+                    : "Send feedback"}
                 </button>
               </div>
             </form>
@@ -387,7 +457,9 @@ export default function FeedbackLauncher() {
   );
 }
 
-function buildDiagnostics(lastClientError: string | null): FeedbackPayload["diagnostics"] {
+function buildDiagnostics(
+  lastClientError: string | null,
+): FeedbackPayload["diagnostics"] {
   const { pathname, hash } = window.location;
   return {
     path: `${pathname}${hash}`,

@@ -45,9 +45,12 @@ export const feedbackPayloadSchema = z
       .trim()
       .max(254)
       .optional()
-      .refine((value) => !value || z.string().email().safeParse(value).success, {
-        message: "Contact email must be a valid email address.",
-      }),
+      .refine(
+        (value) => !value || z.string().email().safeParse(value).success,
+        {
+          message: "Contact email must be a valid email address.",
+        },
+      ),
     diagnostics: feedbackDiagnosticsSchema,
     screenshot: feedbackScreenshotSchema.optional(),
     recaptchaToken: z.string().max(4000).optional(),

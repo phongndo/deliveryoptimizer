@@ -17,7 +17,7 @@ type GitHubIssueResponse = {
 
 export async function createFeedbackIssue(
   payload: FeedbackPayload,
-  screenshot?: ScreenshotReference
+  screenshot?: ScreenshotReference,
 ): Promise<string> {
   const repository = process.env.FEEDBACK_GITHUB_REPO;
   const installationId = process.env.FEEDBACK_GITHUB_INSTALLATION_ID;
@@ -36,7 +36,7 @@ export async function createFeedbackIssue(
         Authorization: `Bearer ${appJwt}`,
         "X-GitHub-Api-Version": "2022-11-28",
       },
-    }
+    },
   );
 
   if (!tokenResponse.ok) {
@@ -45,23 +45,28 @@ export async function createFeedbackIssue(
 
   const tokenJson = (await tokenResponse.json()) as InstallationTokenResponse;
   if (!tokenJson.token) {
-    throw new Error("GitHub installation token response did not include a token.");
+    throw new Error(
+      "GitHub installation token response did not include a token.",
+    );
   }
 
-  const issueResponse = await fetch(`https://api.github.com/repos/${repository}/issues`, {
-    method: "POST",
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${tokenJson.token}`,
-      "Content-Type": "application/json",
-      "X-GitHub-Api-Version": "2022-11-28",
+  const issueResponse = await fetch(
+    `https://api.github.com/repos/${repository}/issues`,
+    {
+      method: "POST",
+      headers: {
+        Accept: "application/vnd.github+json",
+        Authorization: `Bearer ${tokenJson.token}`,
+        "Content-Type": "application/json",
+        "X-GitHub-Api-Version": "2022-11-28",
+      },
+      body: JSON.stringify({
+        title: buildFeedbackIssueTitle(payload),
+        body: buildFeedbackIssueBody(payload, screenshot),
+        labels: feedbackLabelsForCategory(payload.category),
+      }),
     },
-    body: JSON.stringify({
-      title: buildFeedbackIssueTitle(payload),
-      body: buildFeedbackIssueBody(payload, screenshot),
-      labels: feedbackLabelsForCategory(payload.category),
-    }),
-  });
+  );
 
   if (!issueResponse.ok) {
     throw new Error("Failed to create GitHub issue.");

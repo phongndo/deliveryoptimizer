@@ -33,8 +33,10 @@ export async function POST(req: Request) {
   const clientIp = getClientIp(req);
   if (!consumeRateLimit(clientIp)) {
     return NextResponse.json(
-      { error: "Feedback is temporarily rate limited. Please try again later." },
-      { status: 429 }
+      {
+        error: "Feedback is temporarily rate limited. Please try again later.",
+      },
+      { status: 429 },
     );
   }
 
@@ -42,7 +44,10 @@ export async function POST(req: Request) {
   try {
     body = await req.json();
   } catch {
-    return NextResponse.json({ error: "Invalid JSON format." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid JSON format." },
+      { status: 400 },
+    );
   }
 
   const parsed = feedbackPayloadSchema.safeParse(body);
@@ -50,7 +55,7 @@ export async function POST(req: Request) {
     const first = parsed.error.issues[0];
     return NextResponse.json(
       { error: first?.message || "Feedback payload is invalid." },
-      { status: 400 }
+      { status: 400 },
     );
   }
 
@@ -59,11 +64,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ ok: true }, { status: 202 });
   }
 
-  const recaptcha = await verifyRecaptchaToken(payload.recaptchaToken, clientIp);
+  const recaptcha = await verifyRecaptchaToken(
+    payload.recaptchaToken,
+    clientIp,
+  );
   if (!recaptcha.ok) {
     return NextResponse.json(
       { error: "Feedback could not be verified. Please try again later." },
-      { status: 403 }
+      { status: 403 },
     );
   }
 
@@ -79,7 +87,7 @@ export async function POST(req: Request) {
     console.error("feedback submission failed", error);
     return NextResponse.json(
       { error: "Feedback could not be submitted right now." },
-      { status: 502 }
+      { status: 502 },
     );
   }
 }
@@ -87,13 +95,15 @@ export async function POST(req: Request) {
 function feedbackUnavailable() {
   return NextResponse.json(
     { error: "Feedback reporting is temporarily disabled." },
-    { status: 503 }
+    { status: 503 },
   );
 }
 
 function consumeRateLimit(clientIp: string): boolean {
   const now = Date.now();
-  const windowMs = Number(process.env.FEEDBACK_RATE_LIMIT_WINDOW_MS ?? "600000");
+  const windowMs = Number(
+    process.env.FEEDBACK_RATE_LIMIT_WINDOW_MS ?? "600000",
+  );
   const maxRequests = Number(process.env.FEEDBACK_RATE_LIMIT_MAX ?? "5");
   const entry = rateLimits.get(clientIp);
 
@@ -114,7 +124,9 @@ async function recordAcceptedFeedback(): Promise<void> {
   }
 
   acceptedToday.count += 1;
-  const threshold = Number(process.env.FEEDBACK_DAILY_SHUTDOWN_THRESHOLD ?? "100");
+  const threshold = Number(
+    process.env.FEEDBACK_DAILY_SHUTDOWN_THRESHOLD ?? "100",
+  );
   if (acceptedToday.count >= threshold) {
     inMemoryShutdown = true;
     await writeFeedbackShutdownGuard("daily feedback threshold exceeded");

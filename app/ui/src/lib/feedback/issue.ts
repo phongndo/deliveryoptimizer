@@ -16,7 +16,9 @@ const categoryLabels: Record<FeedbackCategory, string[]> = {
   question: ["question", "front-end"],
 };
 
-export function feedbackLabelsForCategory(category: FeedbackCategory): string[] {
+export function feedbackLabelsForCategory(
+  category: FeedbackCategory,
+): string[] {
   return categoryLabels[category];
 }
 
@@ -24,19 +26,19 @@ export function buildFeedbackIssueTitle(payload: FeedbackPayload): string {
   if (payload.title?.trim()) return payload.title.trim();
 
   const firstSentence =
-    payload.message
-      .replace(/\s+/g, " ")
-      .split(/[.!?]/)[0]
-      ?.trim() || "User feedback";
+    payload.message.replace(/\s+/g, " ").split(/[.!?]/)[0]?.trim() ||
+    "User feedback";
   const truncated =
-    firstSentence.length > 72 ? `${firstSentence.slice(0, 69).trim()}...` : firstSentence;
+    firstSentence.length > 72
+      ? `${firstSentence.slice(0, 69).trim()}...`
+      : firstSentence;
 
   return `[Feedback][${feedbackCategoryLabels[payload.category]}] ${truncated}`;
 }
 
 export function buildFeedbackIssueBody(
   payload: FeedbackPayload,
-  screenshot?: ScreenshotReference
+  screenshot?: ScreenshotReference,
 ): string {
   const diagnostics = payload.diagnostics;
   const parts = [
@@ -59,7 +61,7 @@ export function buildFeedbackIssueBody(
     parts.push(
       "",
       "## Screenshot",
-      `Private object: gs://${screenshot.bucket}/${screenshot.objectName}`
+      `Private object: gs://${screenshot.bucket}/${screenshot.objectName}`,
     );
   }
 
@@ -71,12 +73,14 @@ export function buildFeedbackIssueBody(
     formatDiagnostic("Viewport", diagnostics.viewport),
     formatDiagnostic(
       "Device pixel ratio",
-      diagnostics.devicePixelRatio == null ? undefined : String(diagnostics.devicePixelRatio)
+      diagnostics.devicePixelRatio == null
+        ? undefined
+        : String(diagnostics.devicePixelRatio),
     ),
     formatDiagnostic("Locale", diagnostics.locale),
     formatDiagnostic("Time zone", diagnostics.timeZone),
     formatDiagnostic("User agent", diagnostics.userAgent),
-    formatDiagnostic("Last client error", diagnostics.lastClientError)
+    formatDiagnostic("Last client error", diagnostics.lastClientError),
   );
 
   return parts.filter((part) => part !== "").join("\n");

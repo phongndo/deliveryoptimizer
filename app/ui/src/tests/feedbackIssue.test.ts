@@ -27,7 +27,7 @@ const basePayload: FeedbackPayload = {
 describe("feedback issue formatting", () => {
   it("builds a scoped title from category and message", () => {
     expect(buildFeedbackIssueTitle(basePayload)).toBe(
-      "[Feedback][Bug] The route map does not redraw after I move a stop"
+      "[Feedback][Bug] The route map does not redraw after I move a stop",
     );
   });
 
@@ -36,7 +36,7 @@ describe("feedback issue formatting", () => {
       buildFeedbackIssueTitle({
         ...basePayload,
         title: "Cannot save edited route",
-      })
+      }),
     ).toBe("Cannot save edited route");
   });
 
@@ -49,7 +49,9 @@ describe("feedback issue formatting", () => {
     expect(body).toContain("## Feedback");
     expect(body).toContain("The route map does not redraw");
     expect(body).toContain("## Reproduction steps");
-    expect(body).toContain("Private object: gs://feedback-private/feedback/screenshots/2026-05-14/example.jpg");
+    expect(body).toContain(
+      "Private object: gs://feedback-private/feedback/screenshots/2026-05-14/example.jpg",
+    );
     expect(body).toContain("- Path: /results");
     expect(body).toContain("- Last client error: Map redraw failed");
   });
@@ -61,6 +63,9 @@ describe("feedback issue formatting", () => {
       "front-end",
     ]);
     expect(feedbackLabelsForCategory("general")).toEqual(["front-end"]);
-    expect(feedbackLabelsForCategory("question")).toEqual(["question", "front-end"]);
+    expect(feedbackLabelsForCategory("question")).toEqual([
+      "question",
+      "front-end",
+    ]);
   });
 });

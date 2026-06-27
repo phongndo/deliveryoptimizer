@@ -101,7 +101,7 @@ describe("driver route import", () => {
 
   it("rejects files that do not match the saved session contract", () => {
     expect(() => loadSessionFromText(JSON.stringify({ version: 1 }))).toThrow(
-      'Invalid save file format at "deliveries".',
+      'Invalid save file format at "savedAt".',
     );
   });
 

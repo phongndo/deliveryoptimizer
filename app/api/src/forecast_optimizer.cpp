@@ -346,8 +346,8 @@ WeatherImpactEstimate EstimateRouteWeatherImpact(const WeatherForecastOptions& o
   const std::optional<std::chrono::sys_seconds> route_start_time = ReadRouteStartTime(input);
   SetRouteTimes(route_start_time, impact);
   const OpenWeatherDelayEstimate openweather = FetchOpenWeatherDelayEstimate(
-      options, Coordinate{.lon = input.depot_lon, .lat = input.depot_lat}, route_start_time,
-      baseline_duration_seconds);
+      effective_options, Coordinate{.lon = input.depot_lon, .lat = input.depot_lat},
+      route_start_time, baseline_duration_seconds);
   if (openweather.available) {
     effective_options.weather_delay_seconds_per_stop = openweather.delay_seconds_per_stop;
     impact = EstimateWeatherImpact(effective_options, input.jobs.size(), baseline_duration_seconds);
@@ -389,6 +389,7 @@ std::optional<int> ReadVroomDuration(const Json::Value& vroom_output) {
 WeatherImpactEstimate RecalculateWeatherImpact(const WeatherForecastOptions& options,
                                                const OptimizeRequestInput& input,
                                                const Json::Value& vroom_output) {
+  // Callers choose whether OpenWeather may be queried by passing or clearing the API key.
   const std::optional<int> summary_duration = ReadVroomDuration(vroom_output);
   if (!summary_duration.has_value()) {
     return EstimateRouteWeatherImpact(options, input, 0);

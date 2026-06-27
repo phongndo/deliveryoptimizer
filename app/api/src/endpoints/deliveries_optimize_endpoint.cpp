@@ -186,6 +186,8 @@ void RegisterDeliveriesOptimizeEndpoint(drogon::HttpAppFramework& app,
               }
 
               WeatherForecastOptions sync_weather_options = weather_options;
+              // Clear the key so recalculation short-circuits OpenWeather; sync path must not
+              // block the event loop.
               sync_weather_options.openweather_api_key.clear();
               const WeatherImpactEstimate impact = RecalculateWeatherImpact(
                   sync_weather_options, *optimize_request_ptr, *result.output);

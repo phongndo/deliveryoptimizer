@@ -376,36 +376,6 @@ void ParseJobs(const Json::Value& root, deliveryoptimizer::api::OptimizeRequestI
   }
 }
 
-[[nodiscard]] Json::Value BuildLocation(const double lon, const double lat) {
-  Json::Value location{Json::arrayValue};
-  location.append(lon);
-  location.append(lat);
-  return location;
-}
-
-[[nodiscard]] Json::Value BuildUnitArray(const int value) {
-  Json::Value values{Json::arrayValue};
-  values.append(value);
-  return values;
-}
-
-[[nodiscard]] Json::Value
-BuildTimeWindowArray(const deliveryoptimizer::api::TimeWindow& time_window) {
-  Json::Value values{Json::arrayValue};
-  values.append(static_cast<Json::Int64>(time_window.start.time_since_epoch().count()));
-  values.append(static_cast<Json::Int64>(time_window.end.time_since_epoch().count()));
-  return values;
-}
-
-[[nodiscard]] Json::Value
-BuildTimeWindowsArray(const std::vector<deliveryoptimizer::api::TimeWindow>& time_windows) {
-  Json::Value values{Json::arrayValue};
-  for (const auto& time_window : time_windows) {
-    values.append(BuildTimeWindowArray(time_window));
-  }
-  return values;
-}
-
 [[nodiscard]] std::map<std::uint64_t, std::string>
 BuildVehicleExternalIdMap(const deliveryoptimizer::api::OptimizeRequestInput& input) {
   std::map<std::uint64_t, std::string> vehicle_map;
@@ -485,6 +455,155 @@ void ApplyExternalIdsToUnassigned(Json::Value& unassigned,
 } // namespace
 
 namespace deliveryoptimizer::api {
+void AppendJsonString(std::string& output, const std::string_view value) {
+  output.push_back('"');
+  for (const char ch : value) {
+    switch (ch) {
+    case '"':
+      output += "\\\"";
+      break;
+    case '\\':
+      output += "\\\\";
+      break;
+    case '\b':
+      output += "\\b";
+      break;
+    case '\f':
+      output += "\\f";
+      break;
+    case '\n':
+      output += "\\n";
+      break;
+    case '\r':
+      output += "\\r";
+      break;
+    case '\t':
+      output += "\\t";
+      break;
+    default:
+      if (static_cast<unsigned char>(ch) < 0x20U) {
+        constexpr char kHexDigits[] = "0123456789abcdef";
+        output += "\\u00";
+        output.push_back(kHexDigits[(static_cast<unsigned char>(ch) >> 4U) & 0x0FU]);
+        output.push_back(kHexDigits[static_cast<unsigned char>(ch) & 0x0FU]);
+      } else {
+        output.push_back(ch);
+      }
+      break;
+    }
+  }
+  output.push_back('"');
+}
+
+template <typename Integer>
+void AppendJsonInteger(std::string& output, const Integer value) {
+  // to_chars only supports the core integer types; widen narrow ones first.
+  const auto widened = static_cast<std::int64_t>(value);
+  char buffer[32];
+  const auto [end, error] = std::to_chars(buffer, buffer + sizeof(buffer), widened);
+  if (error == std::errc{}) {
+    output.append(buffer, end);
+  } else {
+    output.append(std::to_string(widened));
+  }
+}
+
+void AppendJsonDouble(std::string& output, const double value) {
+  char buffer[32];
+  const auto [end, error] = std::to_chars(buffer, buffer + sizeof(buffer), value);
+  if (error == std::errc{}) {
+    output.append(buffer, end);
+  } else {
+    output.append(std::to_string(value));
+  }
+}
+
+void AppendJsonTimeWindow(std::string& output, const deliveryoptimizer::api::TimeWindow& window) {
+  output.push_back('[');
+  AppendJsonInteger(output, window.start.time_since_epoch().count());
+  output.push_back(',');
+  AppendJsonInteger(output, window.end.time_since_epoch().count());
+  output.push_back(']');
+}
+
+std::string BuildVroomInputText(const deliveryoptimizer::api::OptimizeRequestInput& input,
+                                const int service_adjustment_seconds) {
+  std::string payload;
+  // Rough upper bound: ~90 bytes per job, ~130 bytes per vehicle, plus fixed keys.
+  payload.reserve(input.jobs.size() * 96U + input.vehicles.size() * 140U + 64U);
+  payload += "{\"jobs\":[";
+
+  for (std::size_t index = 0U; index < input.jobs.size(); ++index) {
+    const JobInput& job_input = input.jobs[index];
+    if (index != 0U) {
+      payload.push_back(',');
+    }
+    payload += "{\"id\":";
+    AppendJsonInteger(payload, index + 1U);
+    payload += ",\"location\":[";
+    AppendJsonDouble(payload, job_input.lon);
+    payload.push_back(',');
+    AppendJsonDouble(payload, job_input.lat);
+    payload += "],\"amount\":[";
+    AppendJsonInteger(payload, job_input.demand);
+    payload += "],\"service\":";
+    AppendJsonInteger(payload, job_input.service + service_adjustment_seconds);
+    payload += ",\"description\":";
+    AppendJsonString(payload, job_input.external_id);
+    if (job_input.time_windows.has_value()) {
+      payload += ",\"time_windows\":[";
+      const auto& windows = job_input.time_windows.value();
+      for (std::size_t window_index = 0U; window_index < windows.size(); ++window_index) {
+        if (window_index != 0U) {
+          payload.push_back(',');
+        }
+        AppendJsonTimeWindow(payload, windows[window_index]);
+      }
+      payload.push_back(']');
+    }
+    payload.push_back('}');
+  }
+
+  payload += "],\"vehicles\":[";
+  for (std::size_t index = 0U; index < input.vehicles.size(); ++index) {
+    const VehicleInput& vehicle_input = input.vehicles[index];
+    if (index != 0U) {
+      payload.push_back(',');
+    }
+    const Coordinate start = vehicle_input.start.value_or(Coordinate{
+        .lon = input.depot_lon,
+        .lat = input.depot_lat,
+    });
+    const Coordinate end = vehicle_input.end.value_or(Coordinate{
+        .lon = input.depot_lon,
+        .lat = input.depot_lat,
+    });
+    payload += "{\"id\":";
+    AppendJsonInteger(payload, index + 1U);
+    payload += ",\"start\":[";
+    AppendJsonDouble(payload, start.lon);
+    payload.push_back(',');
+    AppendJsonDouble(payload, start.lat);
+    payload += "],\"end\":[";
+    AppendJsonDouble(payload, end.lon);
+    payload.push_back(',');
+    AppendJsonDouble(payload, end.lat);
+    payload += "],\"capacity\":[";
+    AppendJsonInteger(payload, vehicle_input.capacity);
+    payload += "],\"description\":";
+    AppendJsonString(payload, vehicle_input.external_id);
+    if (vehicle_input.time_window.has_value()) {
+      payload += ",\"time_window\":";
+      AppendJsonTimeWindow(payload, vehicle_input.time_window.value());
+    }
+    payload.push_back('}');
+  }
+
+  payload += "]}";
+  return payload;
+}
+
+
 
 std::optional<ParsedOptimizeRequest> ParseAndValidateOptimizeRequest(const Json::Value& root,
                                                                      Json::Value& issues) {
@@ -532,50 +651,6 @@ std::optional<SolveRequestSize> TryParseOptimizeRequestSize(const Json::Value& r
       .jobs = static_cast<std::size_t>(jobs.size()),
       .vehicles = static_cast<std::size_t>(vehicles.size()),
   };
-}
-
-Json::Value BuildVroomInput(const OptimizeRequestInput& input) {
-  Json::Value payload{Json::objectValue};
-  payload["jobs"] = Json::Value{Json::arrayValue};
-  payload["vehicles"] = Json::Value{Json::arrayValue};
-
-  for (std::size_t index = 0U; index < input.jobs.size(); ++index) {
-    const JobInput& job_input = input.jobs[index];
-    Json::Value job{Json::objectValue};
-    job["id"] = static_cast<Json::UInt64>(index + 1U);
-    job["location"] = BuildLocation(job_input.lon, job_input.lat);
-    job["amount"] = BuildUnitArray(job_input.demand);
-    job["service"] = job_input.service;
-    job["description"] = job_input.external_id;
-    if (job_input.time_windows.has_value()) {
-      job["time_windows"] = BuildTimeWindowsArray(job_input.time_windows.value());
-    }
-    payload["jobs"].append(job);
-  }
-
-  for (std::size_t index = 0U; index < input.vehicles.size(); ++index) {
-    const VehicleInput& vehicle_input = input.vehicles[index];
-    Json::Value vehicle{Json::objectValue};
-    const Coordinate start = vehicle_input.start.value_or(Coordinate{
-        .lon = input.depot_lon,
-        .lat = input.depot_lat,
-    });
-    const Coordinate end = vehicle_input.end.value_or(Coordinate{
-        .lon = input.depot_lon,
-        .lat = input.depot_lat,
-    });
-    vehicle["id"] = static_cast<Json::UInt64>(index + 1U);
-    vehicle["start"] = BuildLocation(start.lon, start.lat);
-    vehicle["end"] = BuildLocation(end.lon, end.lat);
-    vehicle["capacity"] = BuildUnitArray(vehicle_input.capacity);
-    vehicle["description"] = vehicle_input.external_id;
-    if (vehicle_input.time_window.has_value()) {
-      vehicle["time_window"] = BuildTimeWindowArray(vehicle_input.time_window.value());
-    }
-    payload["vehicles"].append(vehicle);
-  }
-
-  return payload;
 }
 
 Json::Value BuildOptimizeSuccessBody(const OptimizeRequestInput& input,

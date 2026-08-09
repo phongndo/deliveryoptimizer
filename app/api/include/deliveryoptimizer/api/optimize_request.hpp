@@ -54,7 +54,11 @@ ParseAndValidateOptimizeRequest(const Json::Value& root, Json::Value& issues);
 
 [[nodiscard]] std::optional<SolveRequestSize> TryParseOptimizeRequestSize(const Json::Value& root);
 
-[[nodiscard]] Json::Value BuildVroomInput(const OptimizeRequestInput& input);
+// Renders the VROOM payload directly to text, avoiding the per-node Json::Value
+// tree. service_adjustment_seconds is added to every job's service when nonzero
+// (used for weather-aware reoptimization).
+[[nodiscard]] std::string BuildVroomInputText(const OptimizeRequestInput& input,
+                                              int service_adjustment_seconds = 0);
 
 [[nodiscard]] Json::Value
 BuildOptimizeSuccessBody(const OptimizeRequestInput& input, const Json::Value& vroom_output,

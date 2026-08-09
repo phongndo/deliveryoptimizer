@@ -155,7 +155,7 @@ void OptimizationJobRuntime::WorkerLoop(const std::stop_token stop_token,
       }
     } else {
       const CoordinatedSolveResult coordinated_result =
-          ToCoordinatedSolveResult(runner_->Run(BuildVroomInput(parsed_request->input)));
+          ToCoordinatedSolveResult(runner_->Run(BuildVroomInputText(parsed_request->input)));
       CoordinatedSolveResult final_result = coordinated_result;
       std::optional<Json::Value> forecast;
       if (coordinated_result.output.has_value()) {
@@ -164,7 +164,7 @@ void OptimizationJobRuntime::WorkerLoop(const std::stop_token stop_token,
         forecast = BuildWeatherForecastAnnotation(weather_options_, impact);
         if (impact.should_reoptimize) {
           final_result = ToCoordinatedSolveResult(
-              runner_->Run(BuildWeatherAdjustedVroomInput(parsed_request->input, impact)));
+              runner_->Run(BuildWeatherAdjustedVroomInputText(parsed_request->input, impact)));
         }
       }
       const auto solve_result =

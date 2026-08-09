@@ -57,8 +57,10 @@ constexpr std::string_view kVroomStdoutPath = "/dev/stdout";
 constexpr std::size_t kMaxVroomOutputBytes = 8U * 1024U * 1024U;
 
 struct SpawnArguments {
-  std::vector<std::string> storage;
-  std::vector<char*> argv;
+  // Only the derived arguments need owned storage; the fixed argv entries point
+  // directly at the runtime config members, which outlive the spawn call.
+  std::array<std::string, 2> storage;
+  std::array<char*, 14> argv{};
 };
 
 enum class DrainReadStatus : std::uint8_t {
@@ -219,11 +221,7 @@ private:
   return static_cast<int>(parsed);
 }
 
-[[nodiscard]] bool WritePayloadToFile(const std::string& path, const Json::Value& input_payload) {
-  Json::StreamWriterBuilder writer_builder;
-  writer_builder["indentation"] = "";
-  const std::string payload_text = Json::writeString(writer_builder, input_payload);
-
+[[nodiscard]] bool WritePayloadToFile(const std::string& path, const std::string& payload_text) {
   std::ofstream input_stream(path, std::ios::binary | std::ios::trunc);
   if (!input_stream.is_open()) {
     return false;
@@ -249,27 +247,27 @@ private:
 BuildSpawnArguments(const deliveryoptimizer::api::VroomRuntimeConfig& runtime_config,
                     const std::string& input_file_path) {
   SpawnArguments spawn_arguments;
-  spawn_arguments.storage = {
-      runtime_config.vroom_bin,
-      "--router",
-      runtime_config.vroom_router,
-      "--host",
-      runtime_config.vroom_host,
-      "--port",
-      runtime_config.vroom_port,
-      "--limit",
-      std::to_string(runtime_config.timeout_seconds),
-      "--input",
-      input_file_path,
-      "--output",
-      std::string{kVroomStdoutPath},
+  spawn_arguments.storage[0] = std::to_string(runtime_config.timeout_seconds);
+  spawn_arguments.storage[1] = std::string{kVroomStdoutPath};
+  // posix_spawn takes char* const argv[] and never writes through it, so the
+  // const_cast is safe; the storage array below owns the only mutable strings.
+  const std::array<char*, 14> argv{
+      const_cast<char*>(runtime_config.vroom_bin.c_str()),
+      const_cast<char*>("--router"),
+      const_cast<char*>(runtime_config.vroom_router.c_str()),
+      const_cast<char*>("--host"),
+      const_cast<char*>(runtime_config.vroom_host.c_str()),
+      const_cast<char*>("--port"),
+      const_cast<char*>(runtime_config.vroom_port.c_str()),
+      const_cast<char*>("--limit"),
+      spawn_arguments.storage[0].data(),
+      const_cast<char*>("--input"),
+      const_cast<char*>(input_file_path.c_str()),
+      const_cast<char*>("--output"),
+      spawn_arguments.storage[1].data(),
+      nullptr,
   };
-
-  spawn_arguments.argv.reserve(spawn_arguments.storage.size() + 1U);
-  for (std::string& argument : spawn_arguments.storage) {
-    spawn_arguments.argv.push_back(argument.data());
-  }
-  spawn_arguments.argv.push_back(nullptr);
+  spawn_arguments.argv = argv;
   return spawn_arguments;
 }
 
@@ -430,7 +428,7 @@ namespace deliveryoptimizer::api {
 ProcessVroomRunner::ProcessVroomRunner(VroomRuntimeConfig runtime_config)
     : runtime_config_(std::move(runtime_config)) {}
 
-VroomRunResult ProcessVroomRunner::Run(const Json::Value& input_payload) const {
+VroomRunResult ProcessVroomRunner::Run(const std::string& input_payload) const {
 #ifdef _WIN32
   (void)input_payload;
   return VroomRunResult{.status = VroomRunStatus::kFailed, .output = std::nullopt};

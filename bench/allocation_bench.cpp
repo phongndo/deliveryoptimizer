@@ -4,7 +4,7 @@
 // measures wall time per scenario. Scenarios mirror the request pipeline:
 //   parse-request        async worker: ParseJsonText + ParseAndValidateOptimizeRequest
 //   parse-vroom-output   runner: ParseJsonText over a large vroom output document
-//   vroom-payload        endpoint/worker: BuildVroomInput + Json::writeString render
+//   vroom-payload        endpoint/worker: BuildVroomInputText direct text render
 //   success-body         BuildOptimizeSuccessBody (external-id enrichment)
 //   to-coordinated       ToCoordinatedSolveResult
 //   worker-flow          worker: ToCoordinatedSolveResult + final assignment + BuildSolveExecutionResult
@@ -443,7 +443,7 @@ int main() {
   auto request_root = deliveryoptimizer::adapters::ParseJsonText(request_text);
   Json::Value issues{Json::arrayValue};
 
-  std::puts("== allocation benchmark (baseline) ==");
+  std::puts("== allocation benchmark (optimized) ==");
   std::printf("request text: %zu bytes, vroom output: %zu bytes\n", request_text.size(),
               vroom_output_text.size());
 
@@ -459,11 +459,9 @@ int main() {
     (void)deliveryoptimizer::adapters::ParseJsonText(vroom_output_text);
   }));
 
-  // 3. build vroom input payload (Value tree) + render
-  PrintResult(RunScenario("vroom-payload", 3, 100, [&] {
-    Json::Value payload = deliveryoptimizer::api::BuildVroomInput(input);
-    (void)RenderJson(payload);
-  }));
+  // 3. build vroom input payload (direct text render)
+  PrintResult(RunScenario("vroom-payload", 3, 100,
+                          [&] { (void)deliveryoptimizer::api::BuildVroomInputText(input); }));
 
   // 4. success response body enrichment
   PrintResult(RunScenario("success-body", 3, 100, [&] {
@@ -481,7 +479,7 @@ int main() {
   PrintResult(RunScenario("worker-flow", 3, 100, [&] {
     deliveryoptimizer::api::VroomRunResult run = MakeRunResult(vroom_output);
     auto coordinated_result = deliveryoptimizer::api::ToCoordinatedSolveResult(std::move(run));
-    auto final_result = coordinated_result; // baseline: copies; moves in the optimized build
+    auto final_result = std::move(coordinated_result); // optimized: moves, no deep copy
     (void)deliveryoptimizer::api::BuildSolveExecutionResult(input, std::move(final_result),
                                                             no_forecast);
   }));
@@ -547,6 +545,36 @@ int main() {
   }));
   PrintResult(RunScenario("spawn-args-optimized", 3, 100, [&] {
     (void)BuildSpawnArgumentsOptimized(runtime_config, "/tmp/deliveryoptimizer-input.json");
+  }));
+
+  // 12. std::function capture size: captures larger than the 16-byte small-buffer
+  // optimization heap-allocate one closure per submit (the pre-optimization sync
+  // endpoint callback captured weather options strings + nested lambdas).
+  struct RequestBundle {
+    std::string weather_base_url;
+    std::string api_key;
+  };
+  auto bundle = std::make_shared<RequestBundle>();
+  bundle->weather_base_url = "https://api.openweathermap.org";
+  bundle->api_key = "";
+  PrintResult(RunScenario("closure-sbo-single-ptr", 3, 100, [&] {
+    std::function<void()> closure = [bundle] { (void)bundle; };
+    (void)closure;
+  }));
+  PrintResult(RunScenario("closure-heap-big-capture", 3, 100, [&] {
+    // Mirrors the pre-optimization capture shape: two shared_ptrs + weather options
+    // strings pushes the closure past the 16-byte SBO, so std::function heap-
+    // allocates the callable on every construction.
+    auto lifecycle = std::make_shared<deliveryoptimizer::api::SolveLifecycle>();
+    const std::string weather_base_url = "https://api.openweathermap.org";
+    const std::string api_key = "";
+    std::function<void()> closure = [bundle, lifecycle, weather_base_url, api_key] {
+      (void)bundle;
+      (void)lifecycle;
+      (void)weather_base_url;
+      (void)api_key;
+    };
+    (void)closure;
   }));
 
   (void)request_root;

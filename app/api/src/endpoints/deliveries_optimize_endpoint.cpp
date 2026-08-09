@@ -175,7 +175,7 @@ void RegisterDeliveriesOptimizeEndpoint(drogon::HttpAppFramework& app,
             .vehicles = optimize_request_ptr->vehicles.size(),
         };
         const SolveAdmissionStatus admission_status = coordinator->Submit(
-            request_size, [optimize_request_ptr] { return BuildVroomInput(*optimize_request_ptr); },
+            request_size, [optimize_request_ptr] { return BuildVroomInputText(*optimize_request_ptr); },
             [coordinator, optimize_request_ptr, request_size, weather_options,
              respond_with_completion](const CoordinatedSolveResult& result) mutable {
               std::optional<Json::Value> forecast;
@@ -201,7 +201,7 @@ void RegisterDeliveriesOptimizeEndpoint(drogon::HttpAppFramework& app,
               const SolveAdmissionStatus rerun_status = coordinator->Submit(
                   request_size,
                   [optimize_request_ptr, impact] {
-                    return BuildWeatherAdjustedVroomInput(*optimize_request_ptr, impact);
+                    return BuildWeatherAdjustedVroomInputText(*optimize_request_ptr, impact);
                   },
                   [optimize_request_ptr, forecast,
                    respond_with_completion](const CoordinatedSolveResult& rerun_result) mutable {

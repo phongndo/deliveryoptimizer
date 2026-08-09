@@ -113,8 +113,14 @@ void RegisterOsrmProxyEndpoint(drogon::HttpAppFramework& app) {
         upstream_request->setPassThrough(true);
 
         const auto& query = request->query();
-        const std::string path =
-            query.empty() ? "/" + path_suffix : "/" + path_suffix + "?" + query;
+        std::string path;
+        path.reserve(path_suffix.size() + query.size() + 2U);
+        path.push_back('/');
+        path.append(path_suffix);
+        if (!query.empty()) {
+          path.push_back('?');
+          path.append(query);
+        }
         upstream_request->setPath(path);
 
         osrm_client->sendRequest(

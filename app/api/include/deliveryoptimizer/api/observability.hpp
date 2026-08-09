@@ -22,6 +22,13 @@ namespace deliveryoptimizer::api {
 
 inline constexpr std::string_view kRequestIdHeader = "X-Request-Id";
 
+// drogon's header APIs take const std::string&, so allocate the header name once
+// per process instead of constructing a fresh std::string on every call.
+[[nodiscard]] inline const std::string& RequestIdHeaderName() {
+  static const std::string name{kRequestIdHeader};
+  return name;
+}
+
 struct RequestContext {
   std::string request_id;
   std::chrono::steady_clock::time_point started_at;

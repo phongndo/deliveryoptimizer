@@ -1,6 +1,7 @@
 #include "deliveryoptimizer/api/observability.hpp"
 
 #include <array>
+#include <charconv>
 #include <cstddef>
 #include <iomanip>
 #include <iostream>
@@ -14,6 +15,85 @@
 namespace {
 
 using SteadyClock = std::chrono::steady_clock;
+
+void AppendEscapedJsonString(std::string& output, const std::string_view value) {
+  output.push_back('"');
+  for (const char ch : value) {
+    switch (ch) {
+    case '"':
+      output += "\\\"";
+      break;
+    case '\\':
+      output += "\\\\";
+      break;
+    case '\b':
+      output += "\\b";
+      break;
+    case '\f':
+      output += "\\f";
+      break;
+    case '\n':
+      output += "\\n";
+      break;
+    case '\r':
+      output += "\\r";
+      break;
+    case '\t':
+      output += "\\t";
+      break;
+    default:
+      if (static_cast<unsigned char>(ch) < 0x20U) {
+        constexpr char kHexDigits[] = "0123456789abcdef";
+        output += "\\u00";
+        output.push_back(kHexDigits[(static_cast<unsigned char>(ch) >> 4U) & 0x0FU]);
+        output.push_back(kHexDigits[static_cast<unsigned char>(ch) & 0x0FU]);
+      } else {
+        output.push_back(ch);
+      }
+      break;
+    }
+  }
+  output.push_back('"');
+}
+
+template <typename Integer>
+void AppendJsonInteger(std::string& output, const Integer value) {
+  // to_chars only supports the core integer types; widen narrow ones first.
+  const auto widened = static_cast<std::int64_t>(value);
+  char buffer[32];
+  const auto [end, error] = std::to_chars(buffer, buffer + sizeof(buffer), widened);
+  if (error == std::errc{}) {
+    output.append(buffer, end);
+  } else {
+    output.append(std::to_string(widened));
+  }
+}
+
+void AppendJsonField(std::string& output, const std::string_view name,
+                     const std::string_view value) {
+  output.push_back(',');
+  output.push_back('"');
+  output.append(name);
+  output += "\":";
+  AppendEscapedJsonString(output, value);
+}
+
+void AppendJsonField(std::string& output, const std::string_view name, const std::string& value) {
+  output.push_back(',');
+  output.push_back('"');
+  output.append(name);
+  output += "\":";
+  AppendEscapedJsonString(output, value);
+}
+
+template <typename Integer>
+void AppendJsonField(std::string& output, const std::string_view name, const Integer value) {
+  output.push_back(',');
+  output.push_back('"');
+  output.append(name);
+  output += "\":";
+  AppendJsonInteger(output, value);
+}
 
 struct HistogramBucket {
   double upper_bound;
@@ -412,29 +492,27 @@ void ObservabilityRegistry::LogSolveRequest(const SolveLifecycle& lifecycle,
   const auto completed_at = lifecycle.completed_at.value_or(SteadyClock::now());
   const auto request_duration = completed_at - lifecycle.request_started_at;
 
-  Json::Value log_line{Json::objectValue};
-  log_line["request_id"] = lifecycle.request_id;
-  log_line["method"] = lifecycle.method;
-  log_line["path"] = lifecycle.path;
-  log_line["jobs"] = static_cast<Json::UInt64>(lifecycle.jobs);
-  log_line["vehicles"] = static_cast<Json::UInt64>(lifecycle.vehicles);
-  log_line["queue_depth"] = static_cast<Json::UInt64>(lifecycle.queue_depth);
-  log_line["inflight_solves"] = static_cast<Json::UInt64>(lifecycle.inflight_solves);
-  log_line["outcome"] = std::string{ToOutcomeString(outcome)};
-  log_line["http_status"] = http_status;
-  log_line["queue_wait_ms"] =
-      static_cast<Json::Int64>(DurationToMilliseconds(lifecycle.queue_wait_duration));
-  log_line["solve_duration_ms"] =
-      static_cast<Json::Int64>(DurationToMilliseconds(lifecycle.solve_duration));
-  log_line["request_duration_ms"] =
-      static_cast<Json::Int64>(DurationToMilliseconds(request_duration));
-
-  Json::StreamWriterBuilder writer_builder;
-  writer_builder["indentation"] = "";
-  writer_builder["commentStyle"] = "None";
-  writer_builder["emitUTF8"] = true;
-
-  const std::string rendered_line = Json::writeString(writer_builder, log_line);
+  // The log line is a flat object of scalars, so it is rendered directly instead
+  // of building a Json::Value tree + writer per request (~20 allocations saved).
+  std::string rendered_line;
+  rendered_line.reserve(320U);
+  rendered_line += "{\"request_id\":";
+  AppendEscapedJsonString(rendered_line, lifecycle.request_id);
+  AppendJsonField(rendered_line, "method", lifecycle.method);
+  AppendJsonField(rendered_line, "path", lifecycle.path);
+  AppendJsonField(rendered_line, "jobs", lifecycle.jobs);
+  AppendJsonField(rendered_line, "vehicles", lifecycle.vehicles);
+  AppendJsonField(rendered_line, "queue_depth", lifecycle.queue_depth);
+  AppendJsonField(rendered_line, "inflight_solves", lifecycle.inflight_solves);
+  AppendJsonField(rendered_line, "outcome", ToOutcomeString(outcome));
+  AppendJsonField(rendered_line, "http_status", http_status);
+  AppendJsonField(rendered_line, "queue_wait_ms",
+                  DurationToMilliseconds(lifecycle.queue_wait_duration));
+  AppendJsonField(rendered_line, "solve_duration_ms",
+                  DurationToMilliseconds(lifecycle.solve_duration));
+  AppendJsonField(rendered_line, "request_duration_ms",
+                  DurationToMilliseconds(request_duration));
+  rendered_line += "}\n";
 
   bool notify_writer = false;
   {
@@ -447,7 +525,7 @@ void ObservabilityRegistry::LogSolveRequest(const SolveLifecycle& lifecycle,
         pending_log_lines_.pop_front();
         tracker_write_failures_.fetch_add(1U, std::memory_order_relaxed);
       }
-      pending_log_lines_.push_back(rendered_line);
+      pending_log_lines_.push_back(std::move(rendered_line));
       notify_writer = true;
     }
   }

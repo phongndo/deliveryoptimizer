@@ -51,11 +51,11 @@ int RunApiServer() {
   const auto default_error_handler = app.getCustomErrorHandler();
 
   app.registerHttpResponseCreationAdvice([](const drogon::HttpResponsePtr& response) {
-    if (response == nullptr || !response->getHeader(std::string{kRequestIdHeader}).empty()) {
+    if (response == nullptr || !response->getHeader(RequestIdHeaderName()).empty()) {
       return;
     }
 
-    response->addHeader(std::string{kRequestIdHeader}, GenerateRequestId());
+    response->addHeader(RequestIdHeaderName(), GenerateRequestId());
   });
   app.setCustomErrorHandler([default_error_handler](const drogon::HttpStatusCode code) {
     auto response = InvokeErrorHandler(default_error_handler, code);
@@ -63,8 +63,8 @@ int RunApiServer() {
       return response;
     }
 
-    if (response->getHeader(std::string{kRequestIdHeader}).empty()) {
-      response->addHeader(std::string{kRequestIdHeader}, GenerateRequestId());
+    if (response->getHeader(RequestIdHeaderName()).empty()) {
+      response->addHeader(RequestIdHeaderName(), GenerateRequestId());
     }
     return response;
   });
@@ -74,8 +74,8 @@ int RunApiServer() {
       auto response = drogon::HttpResponse::newHttpResponse();
       response->setStatusCode(drogon::k413RequestEntityTooLarge);
       if (const auto context = GetRequestContext(request); context.has_value()) {
-        response->removeHeader(std::string{kRequestIdHeader});
-        response->addHeader(std::string{kRequestIdHeader}, context->request_id);
+        response->removeHeader(RequestIdHeaderName());
+        response->addHeader(RequestIdHeaderName(), context->request_id);
       }
       if (request->getMethod() == drogon::Post &&
           (request->path() == "/api/v1/deliveries/optimize" ||
@@ -99,8 +99,8 @@ int RunApiServer() {
           return;
         }
 
-        response->removeHeader(std::string{kRequestIdHeader});
-        response->addHeader(std::string{kRequestIdHeader}, context->request_id);
+        response->removeHeader(RequestIdHeaderName());
+        response->addHeader(RequestIdHeaderName(), context->request_id);
       });
 
   RegisterHealthEndpoint(

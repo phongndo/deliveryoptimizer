@@ -9,6 +9,7 @@
 namespace {
 
 constexpr std::string_view kRequestContextAttributeKey = "deliveryoptimizer.request_context";
+const std::string kRequestContextAttributeKeyString{kRequestContextAttributeKey};
 
 } // namespace
 
@@ -20,11 +21,11 @@ void EnsureRequestContext(const drogon::HttpRequestPtr& request) {
   }
 
   const auto& attributes = request->attributes();
-  if (attributes->find(std::string{kRequestContextAttributeKey})) {
+  if (attributes->find(kRequestContextAttributeKeyString)) {
     return;
   }
 
-  attributes->insert(std::string{kRequestContextAttributeKey},
+  attributes->insert(kRequestContextAttributeKeyString,
                      RequestContext{
                          .request_id = drogon::utils::getUuid(),
                          .started_at = std::chrono::steady_clock::now(),
@@ -37,11 +38,11 @@ std::optional<RequestContext> GetRequestContext(const drogon::HttpRequestPtr& re
   }
 
   const auto& attributes = request->attributes();
-  if (!attributes->find(std::string{kRequestContextAttributeKey})) {
+  if (!attributes->find(kRequestContextAttributeKeyString)) {
     return std::nullopt;
   }
 
-  return attributes->get<RequestContext>(std::string{kRequestContextAttributeKey});
+  return attributes->get<RequestContext>(kRequestContextAttributeKeyString);
 }
 
 SolveLifecycle CreateSolveLifecycle(const drogon::HttpRequestPtr& request) {

@@ -19,9 +19,9 @@
 
 namespace {
 
-[[nodiscard]] drogon::HttpResponsePtr BuildJsonResponse(const Json::Value& body,
+[[nodiscard]] drogon::HttpResponsePtr BuildJsonResponse(Json::Value body,
                                                         const drogon::HttpStatusCode code) {
-  auto response = drogon::HttpResponse::newHttpJsonResponse(body);
+  auto response = drogon::HttpResponse::newHttpJsonResponse(std::move(body));
   response->setStatusCode(code);
   return response;
 }
@@ -30,14 +30,14 @@ namespace {
                                                          const std::string_view error_message) {
   Json::Value body{Json::objectValue};
   body["error"] = std::string{error_message};
-  return BuildJsonResponse(body, code);
+  return BuildJsonResponse(std::move(body), code);
 }
 
-[[nodiscard]] drogon::HttpResponsePtr BuildValidationResponse(const Json::Value& issues) {
+[[nodiscard]] drogon::HttpResponsePtr BuildValidationResponse(Json::Value issues) {
   Json::Value body{Json::objectValue};
   body["error"] = "Validation failed.";
-  body["issues"] = issues;
-  return BuildJsonResponse(body, drogon::k400BadRequest);
+  body["issues"] = std::move(issues);
+  return BuildJsonResponse(std::move(body), drogon::k400BadRequest);
 }
 
 [[nodiscard]] drogon::HttpResponsePtr BuildOptimizationJobsUnavailableResponse(
@@ -57,7 +57,7 @@ namespace {
         body["detail"] = detail;
       }
     }
-    return BuildJsonResponse(body, drogon::k503ServiceUnavailable);
+    return BuildJsonResponse(std::move(body), drogon::k503ServiceUnavailable);
   }
 
   return BuildErrorResponse(drogon::k503ServiceUnavailable, "Optimization jobs are unavailable.");
@@ -146,9 +146,12 @@ void RegisterOptimizationJobsEndpoints(drogon::HttpAppFramework& app,
             .request_id = lifecycle->request_id,
             .started_at = lifecycle->request_started_at,
         });
+        // Store the raw request bytes (already validated by the parse above) instead of
+        // re-rendering the parsed Json::Value, avoiding a full-size string allocation
+        // and a JSON writer per submission.
         const auto created_job =
-            store->CreateJob(context.request_id, internal::RenderJson(*parsed_json),
-                             parsed_request->size.jobs, parsed_request->size.vehicles);
+            store->CreateJob(context.request_id, std::string{request->body()}, parsed_request->size.jobs,
+                             parsed_request->size.vehicles);
         if (created_job.status == CreateOptimizationJobStatus::kQueueFull) {
           FinalizeSolveRequest(observability, lifecycle, SolveRequestOutcome::kRejectedQueueFull,
                                503U);
@@ -167,7 +170,7 @@ void RegisterOptimizationJobsEndpoints(drogon::HttpAppFramework& app,
 
         FinalizeSolveRequest(observability, lifecycle, SolveRequestOutcome::kAcceptedAsync, 202U);
         Json::Value body = BuildJobStatusBody(*created_job.record);
-        auto response = BuildJsonResponse(body, drogon::k202Accepted);
+        auto response = BuildJsonResponse(std::move(body), drogon::k202Accepted);
         response->addHeader("Location", "/api/v1/optimization-jobs/" + created_job.record->job_id);
         std::move(callback)(response);
       },
@@ -193,7 +196,7 @@ void RegisterOptimizationJobsEndpoints(drogon::HttpAppFramework& app,
         }
 
         if (job->result_body.has_value()) {
-          std::move(callback)(BuildJsonResponse(*job->result_body, drogon::k200OK));
+          std::move(callback)(BuildJsonResponse(std::move(*job->result_body), drogon::k200OK));
           return;
         }
 
@@ -202,7 +205,7 @@ void RegisterOptimizationJobsEndpoints(drogon::HttpAppFramework& app,
                            job->state == OptimizationJobState::kRunning)
                               ? drogon::k202Accepted
                               : drogon::k409Conflict;
-        std::move(callback)(BuildJsonResponse(body, code));
+        std::move(callback)(BuildJsonResponse(std::move(body), code));
       },
       {drogon::Get});
 

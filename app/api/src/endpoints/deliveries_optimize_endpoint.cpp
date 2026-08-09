@@ -22,6 +22,21 @@ struct CompletedResponse {
   deliveryoptimizer::api::SolveRequestOutcome outcome;
 };
 
+// Single per-request bundle so every std::function capture stays within the
+// 16-byte small-buffer optimization instead of heap-allocating one closure per
+// submit (and re-copying the weather options strings on the re-run path).
+struct SyncSolveContext {
+  std::shared_ptr<deliveryoptimizer::api::SolveCoordinator> coordinator;
+  std::shared_ptr<deliveryoptimizer::api::OptimizeRequestInput> optimize_request;
+  deliveryoptimizer::api::WeatherForecastOptions weather_options;
+  std::shared_ptr<deliveryoptimizer::api::ObservabilityRegistry> observability;
+  std::shared_ptr<deliveryoptimizer::api::SolveLifecycle> lifecycle;
+  std::shared_ptr<std::function<void(const drogon::HttpResponsePtr&)>> response_callback;
+  trantor::EventLoop* response_loop{nullptr};
+  std::optional<Json::Value> forecast;
+  int weather_service_adjustment_seconds{0};
+};
+
 [[nodiscard]] drogon::HttpResponsePtr BuildErrorResponse(const drogon::HttpStatusCode code,
                                                          const std::string_view error_message) {
   Json::Value body{Json::objectValue};
@@ -95,6 +110,14 @@ void DispatchResponse(
   response_loop->queueInLoop([callback, response] { (*callback)(response); });
 }
 
+void CompleteAndRespond(const std::shared_ptr<SyncSolveContext>& context,
+                        CompletedResponse completed_response) {
+  FinalizeSolveRequest(context->observability, context->lifecycle, completed_response.outcome,
+                       static_cast<std::uint16_t>(completed_response.response->getStatusCode()));
+  DispatchResponse(context->response_loop, context->response_callback,
+                   std::move(completed_response.response));
+}
+
 } // namespace
 
 namespace deliveryoptimizer::api {
@@ -113,45 +136,41 @@ void RegisterDeliveriesOptimizeEndpoint(drogon::HttpAppFramework& app,
        observability = std::move(observability)](
           const drogon::HttpRequestPtr& request,
           std::function<void(const drogon::HttpResponsePtr&)>&& callback) {
-        auto lifecycle = std::make_shared<SolveLifecycle>(CreateSolveLifecycle(request));
-        auto response_callback =
+        auto context = std::make_shared<SyncSolveContext>();
+        context->coordinator = coordinator;
+        context->weather_options = weather_options;
+        context->observability = observability;
+        context->lifecycle = std::make_shared<SolveLifecycle>(CreateSolveLifecycle(request));
+        context->response_callback =
             std::make_shared<std::function<void(const drogon::HttpResponsePtr&)>>(
                 std::move(callback));
-        trantor::EventLoop* response_loop = trantor::EventLoop::getEventLoopOfCurrentThread();
-        if (response_loop == nullptr) {
-          response_loop = drogon::app().getLoop();
+        context->response_loop = trantor::EventLoop::getEventLoopOfCurrentThread();
+        if (context->response_loop == nullptr) {
+          context->response_loop = drogon::app().getLoop();
         }
 
-        const auto respond = [response_callback,
-                              response_loop](const drogon::HttpResponsePtr& response) {
-          DispatchResponse(response_loop, response_callback, response);
-        };
-        const auto respond_with_completion =
-            [respond, observability, lifecycle](const CompletedResponse& completed_response) {
-              FinalizeSolveRequest(
-                  observability, lifecycle, completed_response.outcome,
-                  static_cast<std::uint16_t>(completed_response.response->getStatusCode()));
-              respond(completed_response.response);
-            };
-
+        // Both lambdas capture only the 16-byte shared pointer, so the std::function
+        // storage stays in the small-buffer optimization (no per-request closure
+        // allocations beyond the context itself).
         const auto& parsed_json = request->getJsonObject();
         if (!parsed_json) {
-          respond_with_completion(CompletedResponse{
-              .response =
-                  BuildErrorResponse(drogon::k400BadRequest, "Request body must be valid JSON."),
-              .outcome = SolveRequestOutcome::kInvalidJson,
-          });
+          CompleteAndRespond(context, CompletedResponse{
+                                          .response = BuildErrorResponse(
+                                              drogon::k400BadRequest,
+                                              "Request body must be valid JSON."),
+                                          .outcome = SolveRequestOutcome::kInvalidJson,
+                                      });
           return;
         }
 
         const auto early_request_size = TryParseOptimizeRequestSize(*parsed_json);
         if (early_request_size.has_value()) {
-          lifecycle->jobs = early_request_size->jobs;
-          lifecycle->vehicles = early_request_size->vehicles;
+          context->lifecycle->jobs = early_request_size->jobs;
+          context->lifecycle->vehicles = early_request_size->vehicles;
           const SolveAdmissionStatus admission_status =
-              coordinator->CheckAdmission(*early_request_size, lifecycle);
+              coordinator->CheckAdmission(*early_request_size, context->lifecycle);
           if (admission_status != SolveAdmissionStatus::kAccepted) {
-            respond_with_completion(BuildAdmissionRejectionResponse(admission_status));
+            CompleteAndRespond(context, BuildAdmissionRejectionResponse(admission_status));
             return;
           }
         }
@@ -159,66 +178,76 @@ void RegisterDeliveriesOptimizeEndpoint(drogon::HttpAppFramework& app,
         Json::Value issues{Json::arrayValue};
         auto parsed_request = ParseAndValidateOptimizeRequest(*parsed_json, issues);
         if (!parsed_request.has_value()) {
-          respond_with_completion(CompletedResponse{
-              .response = BuildValidationResponse(issues),
-              .outcome = SolveRequestOutcome::kValidationFailed,
-          });
+          CompleteAndRespond(context, CompletedResponse{
+                                          .response = BuildValidationResponse(std::move(issues)),
+                                          .outcome = SolveRequestOutcome::kValidationFailed,
+                                      });
           return;
         }
 
-        auto optimize_request_ptr =
+        context->optimize_request =
             std::make_shared<OptimizeRequestInput>(std::move(parsed_request->input));
-        lifecycle->jobs = optimize_request_ptr->jobs.size();
-        lifecycle->vehicles = optimize_request_ptr->vehicles.size();
+        context->lifecycle->jobs = context->optimize_request->jobs.size();
+        context->lifecycle->vehicles = context->optimize_request->vehicles.size();
 
         const SolveRequestSize request_size{
-            .jobs = optimize_request_ptr->jobs.size(),
-            .vehicles = optimize_request_ptr->vehicles.size(),
+            .jobs = context->optimize_request->jobs.size(),
+            .vehicles = context->optimize_request->vehicles.size(),
         };
         const SolveAdmissionStatus admission_status = coordinator->Submit(
-            request_size, [optimize_request_ptr] { return BuildVroomInputText(*optimize_request_ptr); },
-            [coordinator, optimize_request_ptr, request_size, weather_options,
-             respond_with_completion](CoordinatedSolveResult result) mutable {
-              std::optional<Json::Value> forecast;
+            request_size, [context] { return BuildVroomInputText(*context->optimize_request); },
+            [context](CoordinatedSolveResult result) mutable {
               if (!result.output.has_value()) {
-                respond_with_completion(BuildSolveExecutionResponse(
-                    BuildSolveExecutionResult(*optimize_request_ptr, std::move(result),
-                                              forecast)));
+                CompleteAndRespond(context, BuildSolveExecutionResponse(
+                                                BuildSolveExecutionResult(
+                                                    *context->optimize_request,
+                                                    std::move(result), std::nullopt)));
                 return;
               }
 
-              WeatherForecastOptions sync_weather_options = weather_options;
+              WeatherForecastOptions sync_weather_options = context->weather_options;
               // Clear the key so recalculation short-circuits OpenWeather; sync path must not
               // block the event loop.
               sync_weather_options.openweather_api_key.clear();
               const WeatherImpactEstimate impact = RecalculateWeatherImpact(
-                  sync_weather_options, *optimize_request_ptr, *result.output);
-              forecast = BuildWeatherForecastAnnotation(sync_weather_options, impact);
+                  sync_weather_options, *context->optimize_request, *result.output);
+              context->forecast = BuildWeatherForecastAnnotation(sync_weather_options, impact);
               if (!impact.should_reoptimize) {
-                respond_with_completion(BuildSolveExecutionResponse(
-                    BuildSolveExecutionResult(*optimize_request_ptr, std::move(result),
-                                              forecast)));
+                CompleteAndRespond(context, BuildSolveExecutionResponse(
+                                                BuildSolveExecutionResult(
+                                                    *context->optimize_request,
+                                                    std::move(result), context->forecast)));
                 return;
               }
 
-              const SolveAdmissionStatus rerun_status = coordinator->Submit(
-                  request_size,
-                  [optimize_request_ptr, impact] {
-                    return BuildWeatherAdjustedVroomInputText(*optimize_request_ptr, impact);
+              // Only the scalar adjustment is needed by the re-run factory, so it
+              // lives on the shared context to keep every std::function capture at
+              // the 16-byte small-buffer size.
+              context->weather_service_adjustment_seconds =
+                  impact.should_reoptimize ? impact.delay_seconds_per_stop : 0;
+              const SolveAdmissionStatus rerun_status = context->coordinator->Submit(
+                  SolveRequestSize{
+                      .jobs = context->optimize_request->jobs.size(),
+                      .vehicles = context->optimize_request->vehicles.size(),
                   },
-                  [optimize_request_ptr, forecast,
-                   respond_with_completion](CoordinatedSolveResult rerun_result) mutable {
-                    respond_with_completion(BuildSolveExecutionResponse(
-                        BuildSolveExecutionResult(*optimize_request_ptr, std::move(rerun_result),
-                                                  forecast)));
+                  [context] {
+                    return BuildVroomInputText(*context->optimize_request,
+                                               context->weather_service_adjustment_seconds);
+                  },
+                  [context](CoordinatedSolveResult rerun_result) mutable {
+                    CompleteAndRespond(
+                        context,
+                        BuildSolveExecutionResponse(BuildSolveExecutionResult(
+                            *context->optimize_request, std::move(rerun_result),
+                            context->forecast)));
                   });
               if (rerun_status != SolveAdmissionStatus::kAccepted) {
-                respond_with_completion(BuildAdmissionRejectionResponse(rerun_status));
+                CompleteAndRespond(context, BuildAdmissionRejectionResponse(rerun_status));
               }
             },
-            lifecycle);
+            context->lifecycle);
         if (admission_status != SolveAdmissionStatus::kAccepted) {
-          respond_with_completion(BuildAdmissionRejectionResponse(admission_status));
+          CompleteAndRespond(context, BuildAdmissionRejectionResponse(admission_status));
         }
       },
       {drogon::Post});

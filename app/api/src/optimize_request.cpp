@@ -3,10 +3,10 @@
 #include "deliveryoptimizer/api/deliveries_optimize_limits.hpp"
 
 #include <chrono>
+#include <charconv>
 #include <cmath>
 #include <cstdint>
 #include <limits>
-#include <map>
 #include <optional>
 #include <string>
 #include <string_view>
@@ -376,38 +376,42 @@ void ParseJobs(const Json::Value& root, deliveryoptimizer::api::OptimizeRequestI
   }
 }
 
-[[nodiscard]] std::map<std::uint64_t, std::string>
-BuildVehicleExternalIdMap(const deliveryoptimizer::api::OptimizeRequestInput& input) {
-  std::map<std::uint64_t, std::string> vehicle_map;
-  for (std::size_t index = 0U; index < input.vehicles.size(); ++index) {
-    vehicle_map.emplace(static_cast<std::uint64_t>(index + 1U), input.vehicles[index].external_id);
+// VROOM emits 1-based contiguous ids that match the payload we built, so a
+// vector indexed by (id - 1) replaces the std::map + string-copy lookup. The
+// const char* pointers stay valid because the input outlives the response build
+// (jsoncpp's operator=(const char*) copies the text into the Value).
+[[nodiscard]] std::vector<const char*>
+BuildExternalIdVector(const std::vector<deliveryoptimizer::api::VehicleInput>& vehicles) {
+  std::vector<const char*> ids;
+  ids.reserve(vehicles.size());
+  for (const auto& vehicle : vehicles) {
+    ids.push_back(vehicle.external_id.c_str());
   }
-  return vehicle_map;
+  return ids;
 }
 
-[[nodiscard]] std::map<std::uint64_t, std::string>
-BuildJobExternalIdMap(const deliveryoptimizer::api::OptimizeRequestInput& input) {
-  std::map<std::uint64_t, std::string> job_map;
-  for (std::size_t index = 0U; index < input.jobs.size(); ++index) {
-    job_map.emplace(static_cast<std::uint64_t>(index + 1U), input.jobs[index].external_id);
+[[nodiscard]] std::vector<const char*>
+BuildExternalIdVector(const std::vector<deliveryoptimizer::api::JobInput>& jobs) {
+  std::vector<const char*> ids;
+  ids.reserve(jobs.size());
+  for (const auto& job : jobs) {
+    ids.push_back(job.external_id.c_str());
   }
-  return job_map;
+  return ids;
 }
 
 void ApplyExternalIdsToRoutes(Json::Value& routes,
-                              const std::map<std::uint64_t, std::string>& vehicle_map,
-                              const std::map<std::uint64_t, std::string>& job_map) {
+                              const std::vector<const char*>& vehicle_ids,
+                              const std::vector<const char*>& job_ids) {
   for (Json::ArrayIndex route_index = 0U; route_index < routes.size(); ++route_index) {
     Json::Value& route = routes[route_index];
     if (!route.isObject()) {
       continue;
     }
     const auto vehicle_id = ParsePositiveId(route["vehicle"]);
-    if (vehicle_id.has_value()) {
-      const auto vehicle_it = vehicle_map.find(*vehicle_id);
-      if (vehicle_it != vehicle_map.end()) {
-        route["vehicle_external_id"] = vehicle_it->second;
-      }
+    if (vehicle_id.has_value() && *vehicle_id > 0U &&
+        *vehicle_id <= static_cast<std::uint64_t>(vehicle_ids.size())) {
+      route["vehicle_external_id"] = vehicle_ids[*vehicle_id - 1U];
     }
 
     Json::Value& steps = route["steps"];
@@ -421,40 +425,85 @@ void ApplyExternalIdsToRoutes(Json::Value& routes,
         continue;
       }
       const auto job_id = ParsePositiveId(step["job"]);
-      if (!job_id.has_value()) {
+      if (!job_id.has_value() || *job_id == 0U ||
+          *job_id > static_cast<std::uint64_t>(job_ids.size())) {
         continue;
       }
 
-      const auto job_it = job_map.find(*job_id);
-      if (job_it != job_map.end()) {
-        step["job_external_id"] = job_it->second;
-      }
+      step["job_external_id"] = job_ids[*job_id - 1U];
     }
   }
 }
 
 void ApplyExternalIdsToUnassigned(Json::Value& unassigned,
-                                  const std::map<std::uint64_t, std::string>& job_map) {
+                                  const std::vector<const char*>& job_ids) {
   for (Json::ArrayIndex index = 0U; index < unassigned.size(); ++index) {
     Json::Value& job = unassigned[index];
     if (!job.isObject()) {
       continue;
     }
     const auto job_id = ParsePositiveId(job["id"]);
-    if (!job_id.has_value()) {
+    if (!job_id.has_value() || *job_id == 0U ||
+        *job_id > static_cast<std::uint64_t>(job_ids.size())) {
       continue;
     }
 
-    const auto job_it = job_map.find(*job_id);
-    if (job_it != job_map.end()) {
-      job["job_external_id"] = job_it->second;
-    }
+    job["job_external_id"] = job_ids[*job_id - 1U];
   }
 }
 
 } // namespace
 
 namespace deliveryoptimizer::api {
+
+std::optional<ParsedOptimizeRequest> ParseAndValidateOptimizeRequest(const Json::Value& root,
+                                                                     Json::Value& issues) {
+  issues = Json::Value{Json::arrayValue};
+  if (!root.isObject()) {
+    AddValidationIssue(issues, "body", "must be a JSON object.");
+    return std::nullopt;
+  }
+
+  OptimizeRequestInput parsed_input{};
+  ParseDepot(root, parsed_input, issues);
+  ParseVehicles(root, parsed_input, issues);
+  ParseJobs(root, parsed_input, issues);
+
+  if (!issues.empty()) {
+    return std::nullopt;
+  }
+
+  const SolveRequestSize request_size{
+      .jobs = parsed_input.jobs.size(),
+      .vehicles = parsed_input.vehicles.size(),
+  };
+  return ParsedOptimizeRequest{
+      .input = std::move(parsed_input),
+      .size = request_size,
+  };
+}
+
+std::optional<SolveRequestSize> TryParseOptimizeRequestSize(const Json::Value& root) {
+  if (!root.isObject()) {
+    return std::nullopt;
+  }
+
+  const Json::Value& vehicles = root["vehicles"];
+  const Json::Value& jobs = root["jobs"];
+  if (!vehicles.isArray() || !jobs.isArray()) {
+    return std::nullopt;
+  }
+
+  if (vehicles.size() > kMaxOptimizeVehicles || jobs.size() > kMaxOptimizeJobs) {
+    return std::nullopt;
+  }
+
+  return SolveRequestSize{
+      .jobs = static_cast<std::size_t>(jobs.size()),
+      .vehicles = static_cast<std::size_t>(vehicles.size()),
+  };
+}
+
 void AppendJsonString(std::string& output, const std::string_view value) {
   output.push_back('"');
   for (const char ch : value) {
@@ -603,78 +652,28 @@ std::string BuildVroomInputText(const deliveryoptimizer::api::OptimizeRequestInp
   return payload;
 }
 
-
-
-std::optional<ParsedOptimizeRequest> ParseAndValidateOptimizeRequest(const Json::Value& root,
-                                                                     Json::Value& issues) {
-  issues = Json::Value{Json::arrayValue};
-  if (!root.isObject()) {
-    AddValidationIssue(issues, "body", "must be a JSON object.");
-    return std::nullopt;
-  }
-
-  OptimizeRequestInput parsed_input{};
-  ParseDepot(root, parsed_input, issues);
-  ParseVehicles(root, parsed_input, issues);
-  ParseJobs(root, parsed_input, issues);
-
-  if (!issues.empty()) {
-    return std::nullopt;
-  }
-
-  const SolveRequestSize request_size{
-      .jobs = parsed_input.jobs.size(),
-      .vehicles = parsed_input.vehicles.size(),
-  };
-  return ParsedOptimizeRequest{
-      .input = std::move(parsed_input),
-      .size = request_size,
-  };
-}
-
-std::optional<SolveRequestSize> TryParseOptimizeRequestSize(const Json::Value& root) {
-  if (!root.isObject()) {
-    return std::nullopt;
-  }
-
-  const Json::Value& vehicles = root["vehicles"];
-  const Json::Value& jobs = root["jobs"];
-  if (!vehicles.isArray() || !jobs.isArray()) {
-    return std::nullopt;
-  }
-
-  if (vehicles.size() > kMaxOptimizeVehicles || jobs.size() > kMaxOptimizeJobs) {
-    return std::nullopt;
-  }
-
-  return SolveRequestSize{
-      .jobs = static_cast<std::size_t>(jobs.size()),
-      .vehicles = static_cast<std::size_t>(vehicles.size()),
-  };
-}
-
 Json::Value BuildOptimizeSuccessBody(const OptimizeRequestInput& input,
-                                     const Json::Value& vroom_output,
+                                     Json::Value vroom_output,
                                      const std::optional<Json::Value>& forecast) {
   Json::Value body{Json::objectValue};
   body["status"] = "ok";
 
-  const Json::Value& summary = vroom_output["summary"];
-  body["summary"] = summary.isObject() ? summary : Json::Value{Json::objectValue};
+  Json::Value summary = std::move(vroom_output["summary"]);
+  body["summary"] = summary.isObject() ? std::move(summary) : Json::Value{Json::objectValue};
 
-  Json::Value routes = vroom_output["routes"];
+  Json::Value routes = std::move(vroom_output["routes"]);
   if (!routes.isArray()) {
     routes = Json::Value{Json::arrayValue};
   }
-  Json::Value unassigned = vroom_output["unassigned"];
+  Json::Value unassigned = std::move(vroom_output["unassigned"]);
   if (!unassigned.isArray()) {
     unassigned = Json::Value{Json::arrayValue};
   }
 
-  const auto vehicle_map = BuildVehicleExternalIdMap(input);
-  const auto job_map = BuildJobExternalIdMap(input);
-  ApplyExternalIdsToRoutes(routes, vehicle_map, job_map);
-  ApplyExternalIdsToUnassigned(unassigned, job_map);
+  const auto vehicle_ids = BuildExternalIdVector(input.vehicles);
+  const auto job_ids = BuildExternalIdVector(input.jobs);
+  ApplyExternalIdsToRoutes(routes, vehicle_ids, job_ids);
+  ApplyExternalIdsToUnassigned(unassigned, job_ids);
   body["routes"] = std::move(routes);
   body["unassigned"] = std::move(unassigned);
   if (forecast.has_value()) {

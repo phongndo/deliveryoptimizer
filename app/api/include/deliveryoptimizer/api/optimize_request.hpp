@@ -60,8 +60,11 @@ ParseAndValidateOptimizeRequest(const Json::Value& root, Json::Value& issues);
 [[nodiscard]] std::string BuildVroomInputText(const OptimizeRequestInput& input,
                                               int service_adjustment_seconds = 0);
 
-[[nodiscard]] Json::Value
-BuildOptimizeSuccessBody(const OptimizeRequestInput& input, const Json::Value& vroom_output,
-                         const std::optional<Json::Value>& forecast = std::nullopt);
+// Takes ownership of the vroom output so its subtrees are moved into the response
+// body instead of deep-copied (jsoncpp values are not copy-on-write).
+[[nodiscard]] Json::Value BuildOptimizeSuccessBody(const OptimizeRequestInput& input,
+                                                   Json::Value vroom_output,
+                                                   const std::optional<Json::Value>& forecast =
+                                                       std::nullopt);
 
 } // namespace deliveryoptimizer::api

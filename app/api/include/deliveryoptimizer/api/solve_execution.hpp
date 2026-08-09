@@ -19,10 +19,12 @@ struct SolveExecutionResult {
   std::string error_message;
 };
 
-[[nodiscard]] SolveExecutionResult
-BuildSolveExecutionResult(const OptimizeRequestInput& input, const CoordinatedSolveResult& result,
-                          const std::optional<Json::Value>& forecast = std::nullopt);
+[[nodiscard]] SolveExecutionResult BuildSolveExecutionResult(
+    const OptimizeRequestInput& input, CoordinatedSolveResult result,
+    const std::optional<Json::Value>& forecast = std::nullopt);
 
-[[nodiscard]] CoordinatedSolveResult ToCoordinatedSolveResult(const VroomRunResult& result);
+// Takes ownership of the run result so the parsed vroom output tree is moved,
+// not deep-copied (jsoncpp values are not copy-on-write).
+[[nodiscard]] CoordinatedSolveResult ToCoordinatedSolveResult(VroomRunResult&& result);
 
 } // namespace deliveryoptimizer::api

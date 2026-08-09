@@ -26,16 +26,16 @@ struct CompletedResponse {
                                                          const std::string_view error_message) {
   Json::Value body{Json::objectValue};
   body["error"] = std::string{error_message};
-  auto response = drogon::HttpResponse::newHttpJsonResponse(body);
+  auto response = drogon::HttpResponse::newHttpJsonResponse(std::move(body));
   response->setStatusCode(code);
   return response;
 }
 
-[[nodiscard]] drogon::HttpResponsePtr BuildValidationResponse(const Json::Value& issues) {
+[[nodiscard]] drogon::HttpResponsePtr BuildValidationResponse(Json::Value issues) {
   Json::Value body{Json::objectValue};
   body["error"] = "Validation failed.";
-  body["issues"] = issues;
-  auto response = drogon::HttpResponse::newHttpJsonResponse(body);
+  body["issues"] = std::move(issues);
+  auto response = drogon::HttpResponse::newHttpJsonResponse(std::move(body));
   response->setStatusCode(drogon::k400BadRequest);
   return response;
 }
@@ -70,9 +70,10 @@ BuildAdmissionRejectionResponse(const deliveryoptimizer::api::SolveAdmissionStat
 }
 
 [[nodiscard]] CompletedResponse
-BuildSolveExecutionResponse(const deliveryoptimizer::api::SolveExecutionResult& result) {
+BuildSolveExecutionResponse(deliveryoptimizer::api::SolveExecutionResult result) {
   if (result.response_body.has_value()) {
-    auto response = drogon::HttpResponse::newHttpJsonResponse(*result.response_body);
+    auto response =
+        drogon::HttpResponse::newHttpJsonResponse(std::move(*result.response_body));
     response->setStatusCode(static_cast<drogon::HttpStatusCode>(result.http_status));
     return CompletedResponse{
         .response = response,
@@ -177,11 +178,12 @@ void RegisterDeliveriesOptimizeEndpoint(drogon::HttpAppFramework& app,
         const SolveAdmissionStatus admission_status = coordinator->Submit(
             request_size, [optimize_request_ptr] { return BuildVroomInputText(*optimize_request_ptr); },
             [coordinator, optimize_request_ptr, request_size, weather_options,
-             respond_with_completion](const CoordinatedSolveResult& result) mutable {
+             respond_with_completion](CoordinatedSolveResult result) mutable {
               std::optional<Json::Value> forecast;
               if (!result.output.has_value()) {
                 respond_with_completion(BuildSolveExecutionResponse(
-                    BuildSolveExecutionResult(*optimize_request_ptr, result, forecast)));
+                    BuildSolveExecutionResult(*optimize_request_ptr, std::move(result),
+                                              forecast)));
                 return;
               }
 
@@ -194,7 +196,8 @@ void RegisterDeliveriesOptimizeEndpoint(drogon::HttpAppFramework& app,
               forecast = BuildWeatherForecastAnnotation(sync_weather_options, impact);
               if (!impact.should_reoptimize) {
                 respond_with_completion(BuildSolveExecutionResponse(
-                    BuildSolveExecutionResult(*optimize_request_ptr, result, forecast)));
+                    BuildSolveExecutionResult(*optimize_request_ptr, std::move(result),
+                                              forecast)));
                 return;
               }
 
@@ -204,9 +207,10 @@ void RegisterDeliveriesOptimizeEndpoint(drogon::HttpAppFramework& app,
                     return BuildWeatherAdjustedVroomInputText(*optimize_request_ptr, impact);
                   },
                   [optimize_request_ptr, forecast,
-                   respond_with_completion](const CoordinatedSolveResult& rerun_result) mutable {
+                   respond_with_completion](CoordinatedSolveResult rerun_result) mutable {
                     respond_with_completion(BuildSolveExecutionResponse(
-                        BuildSolveExecutionResult(*optimize_request_ptr, rerun_result, forecast)));
+                        BuildSolveExecutionResult(*optimize_request_ptr, std::move(rerun_result),
+                                                  forecast)));
                   });
               if (rerun_status != SolveAdmissionStatus::kAccepted) {
                 respond_with_completion(BuildAdmissionRejectionResponse(rerun_status));
